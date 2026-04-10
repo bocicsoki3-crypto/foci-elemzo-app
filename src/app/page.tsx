@@ -22,6 +22,27 @@ interface SavedAnalysis {
 
 const SAVED_ANALYSES_KEY = 'foci_saved_analyses_v1';
 
+function force1X2InAnalysis(
+  analysis: string,
+  probs?: { home?: number; draw?: number; away?: number }
+) {
+  if (!analysis || !probs) return analysis;
+  const home = Number.isFinite(probs.home) ? Number(probs.home) : null;
+  const draw = Number.isFinite(probs.draw) ? Number(probs.draw) : null;
+  const away = Number.isFinite(probs.away) ? Number(probs.away) : null;
+  if (home === null || draw === null || away === null) return analysis;
+
+  let updated = analysis;
+  const homeRegex = /Hazai:\s*\d+(?:[.,]\d+)?%/i;
+  const drawRegex = /D[oö]ntetlen:\s*\d+(?:[.,]\d+)?%/i;
+  const awayRegex = /Vend[eé]g:\s*\d+(?:[.,]\d+)?%/i;
+
+  if (homeRegex.test(updated)) updated = updated.replace(homeRegex, `Hazai: ${home}%`);
+  if (drawRegex.test(updated)) updated = updated.replace(drawRegex, `Döntetlen: ${draw}%`);
+  if (awayRegex.test(updated)) updated = updated.replace(awayRegex, `Vendeg: ${away}%`);
+  return updated;
+}
+
 export default function Home() {
   const [matches, setMatches] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -94,7 +115,8 @@ export default function Home() {
         matchDetails: match,
         options: { riskProfile, bankroll },
       });
-      setAnalysis(response.data.analysis);
+      const fixedAnalysis = force1X2InAnalysis(response.data.analysis, response.data.probabilities);
+      setAnalysis(fixedAnalysis);
       setStructuredAnalysis(response.data.structuredAnalysis || null);
     } catch (err) {
       console.error('Error analyzing match:', err);

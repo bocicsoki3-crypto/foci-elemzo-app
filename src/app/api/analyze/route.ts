@@ -9,7 +9,10 @@ export async function POST(request: Request) {
     const options = body?.options || {};
     const analysisContext = await getMatchAnalysisContext(matchDetails);
     const result = await analyzeMatch(matchDetails, analysisContext, options);
-    return NextResponse.json(result);
+    return NextResponse.json({
+      ...result,
+      probabilities: analysisContext.probabilities,
+    });
   } catch (error) {
     console.error('API Error analyzing match:', error);
     const message = error instanceof Error ? error.message : 'Failed to analyze match';
