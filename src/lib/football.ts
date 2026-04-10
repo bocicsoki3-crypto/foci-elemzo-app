@@ -68,6 +68,18 @@ export interface MatchAnalysisContext {
     teamStats: boolean;
     news: boolean;
   };
+  monteCarlo: {
+    iterations: number;
+    homeWinPct: number;
+    drawPct: number;
+    awayWinPct: number;
+    bttsYesPct: number;
+    over25Pct: number;
+    over35Pct: number;
+    expectedHomeGoals: number;
+    expectedAwayGoals: number;
+    mostLikelyScore: string;
+  };
   newsIntel: Array<{
     title: string;
     source: string;
@@ -239,6 +251,124 @@ async function getUnderstatTeamXg(
 function toSafeNumber(value: any) {
   const parsed = Number.parseFloat(String(value ?? '').replace('%', '').replace(',', '.'));
   return Number.isFinite(parsed) ? parsed : null;
+}
+
+function factorial(n: number) {
+  if (n <= 1) return 1;
+  let result = 1;
+  for (let i = 2; i <= n; i++) result *= i;
+  return result;
+}
+
+function poissonProb(lambda: number, k: number) {
+  if (!Number.isFinite(lambda) || lambda < 0) return 0;
+  return Math.exp(-lambda) * Math.pow(lambda, k) / factorial(k);
+}
+
+function clampExpectedGoals(value: number) {
+  if (!Number.isFinite(value)) return 1.25;
+  return Math.max(0.2, Math.min(3.8, value));
+}
+
+function getExpectedGoalsInputs(
+  homeIntel: MatchAnalysisContext['teamIntel']['home'],
+  awayIntel: MatchAnalysisContext['teamIntel']['away'],
+  xg: MatchAnalysisContext['xgSummary']
+) {
+  const homeAttack = homeIntel.goalsForPerMatch ?? 1.2;
+  const homeDefense = homeIntel.goalsAgainstPerMatch ?? 1.2;
+  const awayAttack = awayIntel.goalsForPerMatch ?? 1.1;
+  const awayDefense = awayIntel.goalsAgainstPerMatch ?? 1.2;
+
+  const homeXg = xg.home.avgXG ?? homeAttack;
+  const awayXg = xg.away.avgXG ?? awayAttack;
+  const homeXga = xg.home.avgXGA ?? homeDefense;
+  const awayXga = xg.away.avgXGA ?? awayDefense;
+
+  // Weighted blend: form-based GF/GA + xG/xGA + home advantage.
+  const expHome = clampExpectedGoals(
+    homeAttack * 0.28 + awayDefense * 0.17 + homeXg * 0.35 + awayXga * 0.2 + 0.18
+  );
+  const expAway = clampExpectedGoals(
+    awayAttack * 0.3 + homeDefense * 0.18 + awayXg * 0.34 + homeXga * 0.18 - 0.08
+  );
+
+  return { expHome, expAway };
+}
+
+function runMonteCarlo(
+  homeIntel: MatchAnalysisContext['teamIntel']['home'],
+  awayIntel: MatchAnalysisContext['teamIntel']['away'],
+  xg: MatchAnalysisContext['xgSummary'],
+  iterations = 12000
+) {
+  const { expHome, expAway } = getExpectedGoalsInputs(homeIntel, awayIntel, xg);
+  const maxGoals = 8;
+
+  const homeDist = Array.from({ length: maxGoals + 1 }, (_, k) =>
+    k === maxGoals
+      ? 1 - Array.from({ length: maxGoals }, (_, i) => poissonProb(expHome, i)).reduce((a, b) => a + b, 0)
+      : poissonProb(expHome, k)
+  );
+  const awayDist = Array.from({ length: maxGoals + 1 }, (_, k) =>
+    k === maxGoals
+      ? 1 - Array.from({ length: maxGoals }, (_, i) => poissonProb(expAway, i)).reduce((a, b) => a + b, 0)
+      : poissonProb(expAway, k)
+  );
+
+  const homeCum: number[] = [];
+  const awayCum: number[] = [];
+  homeDist.reduce((acc, v, i) => (homeCum[i] = acc + v, acc + v), 0);
+  awayDist.reduce((acc, v, i) => (awayCum[i] = acc + v, acc + v), 0);
+
+  const drawFromCum = (cum: number[]) => {
+    const r = Math.random();
+    const idx = cum.findIndex((p) => r <= p);
+    return idx === -1 ? cum.length - 1 : idx;
+  };
+
+  let homeWin = 0;
+  let draw = 0;
+  let awayWin = 0;
+  let bttsYes = 0;
+  let over25 = 0;
+  let over35 = 0;
+  let totalHomeGoals = 0;
+  let totalAwayGoals = 0;
+  const scoreCounter: Record<string, number> = {};
+
+  for (let i = 0; i < iterations; i++) {
+    const hg = drawFromCum(homeCum);
+    const ag = drawFromCum(awayCum);
+    totalHomeGoals += hg;
+    totalAwayGoals += ag;
+
+    if (hg > ag) homeWin++;
+    else if (hg === ag) draw++;
+    else awayWin++;
+
+    if (hg > 0 && ag > 0) bttsYes++;
+    if (hg + ag > 2.5) over25++;
+    if (hg + ag > 3.5) over35++;
+
+    const score = `${hg}-${ag}`;
+    scoreCounter[score] = (scoreCounter[score] || 0) + 1;
+  }
+
+  const mostLikelyScore = Object.entries(scoreCounter).sort((a, b) => b[1] - a[1])[0]?.[0] || '1-1';
+
+  return {
+    iterations,
+    homeWinPct: Number(((homeWin / iterations) * 100).toFixed(1)),
+    drawPct: Number(((draw / iterations) * 100).toFixed(1)),
+    awayWinPct: Number(((awayWin / iterations) * 100).toFixed(1)),
+    bttsYesPct: Number(((bttsYes / iterations) * 100).toFixed(1)),
+    over25Pct: Number(((over25 / iterations) * 100).toFixed(1)),
+    over35Pct: Number(((over35 / iterations) * 100).toFixed(1)),
+    expectedHomeGoals: Number((totalHomeGoals / iterations).toFixed(2)),
+    expectedAwayGoals: Number((totalAwayGoals / iterations).toFixed(2)),
+    mostLikelyScore,
+  };
 }
 
 async function getTeamXgSummary(teamId: number, fixtures: any[]) {
@@ -566,6 +696,18 @@ export async function getMatchAnalysisContext(matchDetails: any): Promise<MatchA
       teamStats: false,
       news: false,
     },
+    monteCarlo: {
+      iterations: 0,
+      homeWinPct: 33.3,
+      drawPct: 33.4,
+      awayWinPct: 33.3,
+      bttsYesPct: 50,
+      over25Pct: 50,
+      over35Pct: 28,
+      expectedHomeGoals: 1.2,
+      expectedAwayGoals: 1.1,
+      mostLikelyScore: '1-1',
+    },
     newsIntel: [],
   };
 
@@ -636,6 +778,7 @@ export async function getMatchAnalysisContext(matchDetails: any): Promise<MatchA
   awayIntel.avgCorners = awayDiscipline.avgCorners;
   awayIntel.avgYellowCards = awayDiscipline.avgYellowCards;
   awayIntel.avgRedCards = awayDiscipline.avgRedCards;
+  const monteCarlo = runMonteCarlo(homeIntel, awayIntel, { home: finalHomeXg, away: finalAwayXg });
 
   return {
     prediction: predictionFirst,
@@ -658,6 +801,7 @@ export async function getMatchAnalysisContext(matchDetails: any): Promise<MatchA
       teamStats: hasTeamStats,
       news: Array.isArray(newsIntel) && newsIntel.length > 0,
     },
+    monteCarlo,
     newsIntel,
   };
 }

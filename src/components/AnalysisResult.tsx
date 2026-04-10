@@ -8,6 +8,7 @@ import type { StructuredAnalysis } from '@/lib/gemini';
 interface AnalysisResultProps {
   analysis: string | null;
   structuredAnalysis: StructuredAnalysis | null;
+  monteCarlo: any | null;
   loading: boolean;
   onRefresh: () => void;
   selectedMatch: any | null;
@@ -41,6 +42,7 @@ function v(value: number | null | undefined, suffix = '') {
 export default function AnalysisResult({
   analysis,
   structuredAnalysis,
+  monteCarlo,
   loading,
   onRefresh,
   selectedMatch,
@@ -144,6 +146,23 @@ export default function AnalysisResult({
             >
               {structuredAnalysis && (
                 <div className="space-y-3">
+                  {monteCarlo && (
+                    <div className="rounded-xl border border-fuchsia-300 bg-fuchsia-50 p-3">
+                      <p className="text-xs font-semibold text-fuchsia-700 mb-2">
+                        Monte Carlo ({monteCarlo.iterations} futás)
+                      </p>
+                      <div className="grid grid-cols-2 md:grid-cols-5 gap-2 text-xs text-fuchsia-900">
+                        <div className="rounded bg-white/70 p-2">H: <span className="font-bold">{monteCarlo.homeWinPct}%</span></div>
+                        <div className="rounded bg-white/70 p-2">D: <span className="font-bold">{monteCarlo.drawPct}%</span></div>
+                        <div className="rounded bg-white/70 p-2">V: <span className="font-bold">{monteCarlo.awayWinPct}%</span></div>
+                        <div className="rounded bg-white/70 p-2">BTTS igen: <span className="font-bold">{monteCarlo.bttsYesPct}%</span></div>
+                        <div className="rounded bg-white/70 p-2">O2.5: <span className="font-bold">{monteCarlo.over25Pct}%</span></div>
+                      </div>
+                      <p className="text-xs text-fuchsia-800 mt-2">
+                        xG becslés: {monteCarlo.expectedHomeGoals} - {monteCarlo.expectedAwayGoals} | Legvalószínűbb: {monteCarlo.mostLikelyScore}
+                      </p>
+                    </div>
+                  )}
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                     <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3">
                       <p className="text-[11px] font-semibold text-emerald-700">Hazai %</p>

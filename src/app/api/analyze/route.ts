@@ -12,6 +12,7 @@ export async function POST(request: Request) {
     return NextResponse.json({
       ...result,
       probabilities: analysisContext.probabilities,
+      monteCarlo: analysisContext.monteCarlo,
     });
   } catch (error) {
     console.error('API Error analyzing match:', error);

@@ -18,6 +18,7 @@ interface SavedAnalysis {
   analysis: string;
   structuredAnalysis?: StructuredAnalysis | null;
   riskProfile?: RiskProfile;
+  monteCarlo?: any;
 }
 
 const SAVED_ANALYSES_KEY = 'foci_saved_analyses_v1';
@@ -50,6 +51,7 @@ export default function Home() {
   const [selectedMatch, setSelectedMatch] = useState<any | null>(null);
   const [analysis, setAnalysis] = useState<string | null>(null);
   const [structuredAnalysis, setStructuredAnalysis] = useState<StructuredAnalysis | null>(null);
+  const [monteCarlo, setMonteCarlo] = useState<any | null>(null);
   const [analysisLoading, setAnalysisLoading] = useState(false);
   const [riskProfile, setRiskProfile] = useState<RiskProfile>('kiegyensulyozott');
   const [bankroll, setBankroll] = useState<number>(100);
@@ -108,6 +110,7 @@ export default function Home() {
     setSelectedMatch(match);
     setAnalysis(null);
     setStructuredAnalysis(null);
+    setMonteCarlo(null);
     setAnalysisLoading(true);
     
     try {
@@ -118,6 +121,7 @@ export default function Home() {
       const fixedAnalysis = force1X2InAnalysis(response.data.analysis, response.data.probabilities);
       setAnalysis(fixedAnalysis);
       setStructuredAnalysis(response.data.structuredAnalysis || null);
+      setMonteCarlo(response.data.monteCarlo || null);
     } catch (err) {
       console.error('Error analyzing match:', err);
       if (axios.isAxiosError(err)) {
@@ -182,13 +186,14 @@ export default function Home() {
       analysis,
       structuredAnalysis,
       riskProfile,
+      monteCarlo,
     };
 
     setSavedAnalyses((prev) => {
       const withoutSameMatch = prev.filter((item) => item.matchId !== newEntry.matchId);
       return [newEntry, ...withoutSameMatch].slice(0, 40);
     });
-  }, [analysis, structuredAnalysis, selectedMatch, riskProfile]);
+  }, [analysis, structuredAnalysis, selectedMatch, riskProfile, monteCarlo]);
 
   const openLiveAnalysisModal = () => {
     if (!analysis || !selectedMatch || !isSavableAnalysis(analysis)) return;
@@ -202,6 +207,7 @@ export default function Home() {
       analysis,
       structuredAnalysis,
       riskProfile,
+      monteCarlo,
     });
     setIsAnalysisModalOpen(true);
   };
@@ -394,6 +400,7 @@ export default function Home() {
               <AnalysisResult
                 analysis={analysis}
                 structuredAnalysis={structuredAnalysis}
+                monteCarlo={monteCarlo}
                 loading={analysisLoading}
                 onRefresh={handleRefreshAnalysis}
                 selectedMatch={selectedMatch}
