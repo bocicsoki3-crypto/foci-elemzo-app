@@ -25,7 +25,11 @@ export interface StructuredAnalysis {
   tacticalNotes: string[];
   goalMarkets: {
     overUnder25: { pick: string; reason: string };
+    overUnder35: { pick: string; reason: string };
     btts: { pick: string; reason: string };
+    firstHalf: { pick: string; reason: string };
+    corners: { line: string; pick: string };
+    cards: { line: string; pick: string };
   };
   tipsByRisk: {
     konzervativ: { tip: string; reason: string; stakePercent?: number };
@@ -44,6 +48,7 @@ export interface StructuredAnalysis {
     xg: { home: number | null; away: number | null; xgaHome: number | null; xgaAway: number | null };
     ppg: { home: number | null; away: number | null };
     goalsPerMatch: { homeFor: number | null; awayFor: number | null; homeAgainst: number | null; awayAgainst: number | null };
+    cornersCards: { homeCorners: number | null; awayCorners: number | null; homeYellow: number | null; awayYellow: number | null };
     availability: { homeMissing: number; awayMissing: number };
     formations: { home: string | null; away: string | null };
   };
@@ -221,9 +226,25 @@ function coerceStructured(parsed: any, context?: MatchAnalysisContext): Structur
         pick: parsed?.goalMarkets?.overUnder25?.pick || "Nincs eleg adat",
         reason: parsed?.goalMarkets?.overUnder25?.reason || "nem megerositett",
       },
+      overUnder35: {
+        pick: parsed?.goalMarkets?.overUnder35?.pick || "Nincs eleg adat",
+        reason: parsed?.goalMarkets?.overUnder35?.reason || "nem megerositett",
+      },
       btts: {
         pick: parsed?.goalMarkets?.btts?.pick || "Nincs eleg adat",
         reason: parsed?.goalMarkets?.btts?.reason || "nem megerositett",
+      },
+      firstHalf: {
+        pick: parsed?.goalMarkets?.firstHalf?.pick || "Nincs eleg adat",
+        reason: parsed?.goalMarkets?.firstHalf?.reason || "nem megerositett",
+      },
+      corners: {
+        line: parsed?.goalMarkets?.corners?.line || '9.5',
+        pick: parsed?.goalMarkets?.corners?.pick || 'Nincs eleg adat',
+      },
+      cards: {
+        line: parsed?.goalMarkets?.cards?.line || '3.5',
+        pick: parsed?.goalMarkets?.cards?.pick || 'Nincs eleg adat',
       },
     },
     tipsByRisk: {
@@ -276,6 +297,12 @@ function coerceStructured(parsed: any, context?: MatchAnalysisContext): Structur
         awayFor: context?.teamIntel?.away?.goalsForPerMatch ?? null,
         homeAgainst: context?.teamIntel?.home?.goalsAgainstPerMatch ?? null,
         awayAgainst: context?.teamIntel?.away?.goalsAgainstPerMatch ?? null,
+      },
+      cornersCards: {
+        homeCorners: context?.teamIntel?.home?.avgCorners ?? null,
+        awayCorners: context?.teamIntel?.away?.avgCorners ?? null,
+        homeYellow: context?.teamIntel?.home?.avgYellowCards ?? null,
+        awayYellow: context?.teamIntel?.away?.avgYellowCards ?? null,
       },
       availability: {
         homeMissing: context?.teamIntel?.home?.missingPlayers?.length || 0,
@@ -393,7 +420,11 @@ Schema:
   "tacticalNotes": ["..."],
   "goalMarkets": {
     "overUnder25": { "pick": "...", "reason": "..." },
-    "btts": { "pick": "...", "reason": "..." }
+    "overUnder35": { "pick": "...", "reason": "..." },
+    "btts": { "pick": "...", "reason": "..." },
+    "firstHalf": { "pick": "...", "reason": "..." },
+    "corners": { "line": "9.5", "pick": "..." },
+    "cards": { "line": "3.5", "pick": "..." }
   },
   "tipsByRisk": {
     "konzervativ": { "tip": "...", "reason": "...", "stakePercent": 0 },

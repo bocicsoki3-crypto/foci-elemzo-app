@@ -184,6 +184,57 @@ export default function AnalysisResult({
                     </div>
                   </div>
 
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div className="rounded-xl border border-indigo-200 bg-indigo-50 p-3">
+                      <p className="text-[11px] font-semibold text-indigo-700">BTTS</p>
+                      <p className="text-sm font-bold text-indigo-800">{structuredAnalysis.goalMarkets.btts.pick}</p>
+                    </div>
+                    <div className="rounded-xl border border-indigo-200 bg-indigo-50 p-3">
+                      <p className="text-[11px] font-semibold text-indigo-700">Over/Under 2.5</p>
+                      <p className="text-sm font-bold text-indigo-800">{structuredAnalysis.goalMarkets.overUnder25.pick}</p>
+                    </div>
+                    <div className="rounded-xl border border-indigo-200 bg-indigo-50 p-3">
+                      <p className="text-[11px] font-semibold text-indigo-700">Over/Under 3.5</p>
+                      <p className="text-sm font-bold text-indigo-800">{structuredAnalysis.goalMarkets.overUnder35.pick}</p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                    <div className="rounded-xl border border-amber-200 bg-amber-50 p-3">
+                      <p className="text-[11px] font-semibold text-amber-700">Félidő tipp</p>
+                      <p className="text-sm font-bold text-amber-800">{structuredAnalysis.goalMarkets.firstHalf.pick}</p>
+                    </div>
+                    <div className="rounded-xl border border-amber-200 bg-amber-50 p-3">
+                      <p className="text-[11px] font-semibold text-amber-700">Szöglet tipp</p>
+                      <p className="text-sm font-bold text-amber-800">{structuredAnalysis.goalMarkets.corners.pick}</p>
+                      <p className="text-xs text-amber-700">Line: {structuredAnalysis.goalMarkets.corners.line}</p>
+                    </div>
+                    <div className="rounded-xl border border-amber-200 bg-amber-50 p-3">
+                      <p className="text-[11px] font-semibold text-amber-700">Lap tipp</p>
+                      <p className="text-sm font-bold text-amber-800">{structuredAnalysis.goalMarkets.cards.pick}</p>
+                      <p className="text-xs text-amber-700">Line: {structuredAnalysis.goalMarkets.cards.line}</p>
+                    </div>
+                    <div className="rounded-xl border border-amber-200 bg-amber-50 p-3">
+                      <p className="text-[11px] font-semibold text-amber-700">Pontos eredmény</p>
+                      <p className="text-sm font-bold text-amber-800">{structuredAnalysis.correctScore.prediction}</p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3">
+                      <p className="text-[11px] font-semibold text-emerald-700">Konzervatív tipp</p>
+                      <p className="text-sm font-bold text-emerald-800">{structuredAnalysis.tipsByRisk.konzervativ.tip}</p>
+                    </div>
+                    <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3">
+                      <p className="text-[11px] font-semibold text-emerald-700">Kiegyensúlyozott tipp</p>
+                      <p className="text-sm font-bold text-emerald-800">{structuredAnalysis.tipsByRisk.kiegyensulyozott.tip}</p>
+                    </div>
+                    <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3">
+                      <p className="text-[11px] font-semibold text-emerald-700">Agresszív tipp</p>
+                      <p className="text-sm font-bold text-emerald-800">{structuredAnalysis.tipsByRisk.agressziv.tip}</p>
+                    </div>
+                  </div>
+
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                     <div className="rounded-xl border border-red-200 bg-red-50 p-3">
                       <p className="text-[11px] font-semibold text-red-700">Hiányzók (H)</p>

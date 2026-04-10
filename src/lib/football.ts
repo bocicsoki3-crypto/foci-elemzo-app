@@ -26,6 +26,9 @@ export interface MatchAnalysisContext {
       ppg: number | null;
       goalsForPerMatch: number | null;
       goalsAgainstPerMatch: number | null;
+      avgCorners: number | null;
+      avgYellowCards: number | null;
+      avgRedCards: number | null;
       cleanSheetRate: number | null;
       failedToScoreRate: number | null;
       likelyFormation: string | null;
@@ -35,6 +38,9 @@ export interface MatchAnalysisContext {
       ppg: number | null;
       goalsForPerMatch: number | null;
       goalsAgainstPerMatch: number | null;
+      avgCorners: number | null;
+      avgYellowCards: number | null;
+      avgRedCards: number | null;
       cleanSheetRate: number | null;
       failedToScoreRate: number | null;
       likelyFormation: string | null;
@@ -184,6 +190,50 @@ async function getTeamXgSummary(teamId: number, fixtures: any[]) {
   };
 }
 
+async function getTeamRecentDisciplineAndCorners(teamId: number, fixtures: any[]) {
+  const finishedFixtures = fixtures.filter((fixture) => fixture?.fixture?.status?.short === 'FT').slice(0, 5);
+  if (finishedFixtures.length === 0) {
+    return { avgCorners: null, avgYellowCards: null, avgRedCards: null, samples: 0 };
+  }
+
+  const statsResults = await Promise.allSettled(
+    finishedFixtures.map((fixture) => safeApiGet('/fixtures/statistics', { fixture: fixture?.fixture?.id }))
+  );
+
+  let corners = 0;
+  let yellow = 0;
+  let red = 0;
+  let samples = 0;
+
+  for (const result of statsResults) {
+    if (result.status !== 'fulfilled') continue;
+    const entries = result.value;
+    if (!Array.isArray(entries) || entries.length < 2) continue;
+
+    const teamStats = entries.find((entry: any) => entry?.team?.id === teamId);
+    if (!teamStats) continue;
+
+    const cornerValue = parseStatNumber(teamStats?.statistics?.find((stat: any) => stat?.type === 'Corner Kicks')?.value);
+    const yellowValue = parseStatNumber(teamStats?.statistics?.find((stat: any) => stat?.type === 'Yellow Cards')?.value);
+    const redValue = parseStatNumber(teamStats?.statistics?.find((stat: any) => stat?.type === 'Red Cards')?.value);
+
+    if (cornerValue !== null || yellowValue !== null || redValue !== null) {
+      corners += cornerValue ?? 0;
+      yellow += yellowValue ?? 0;
+      red += redValue ?? 0;
+      samples += 1;
+    }
+  }
+
+  if (samples === 0) return { avgCorners: null, avgYellowCards: null, avgRedCards: null, samples: 0 };
+  return {
+    avgCorners: Number((corners / samples).toFixed(2)),
+    avgYellowCards: Number((yellow / samples).toFixed(2)),
+    avgRedCards: Number((red / samples).toFixed(2)),
+    samples,
+  };
+}
+
 function normalizeTo100(home: number, draw: number, away: number) {
   const total = home + draw + away;
   if (!Number.isFinite(total) || total <= 0) return { home: 33, draw: 34, away: 33 };
@@ -329,6 +379,9 @@ function buildTeamIntel(teamStats: any, injuries: any[], lineups: any[], teamId:
     ppg,
     goalsForPerMatch,
     goalsAgainstPerMatch,
+    avgCorners: null,
+    avgYellowCards: null,
+    avgRedCards: null,
     cleanSheetRate,
     failedToScoreRate,
     likelyFormation,
@@ -404,10 +457,10 @@ export async function getMatchAnalysisContext(matchDetails: any): Promise<MatchA
     recentForm: { home: [], away: [] },
     teamIntel: {
       home: {
-        ppg: null, goalsForPerMatch: null, goalsAgainstPerMatch: null, cleanSheetRate: null, failedToScoreRate: null, likelyFormation: null, missingPlayers: [],
+        ppg: null, goalsForPerMatch: null, goalsAgainstPerMatch: null, avgCorners: null, avgYellowCards: null, avgRedCards: null, cleanSheetRate: null, failedToScoreRate: null, likelyFormation: null, missingPlayers: [],
       },
       away: {
-        ppg: null, goalsForPerMatch: null, goalsAgainstPerMatch: null, cleanSheetRate: null, failedToScoreRate: null, likelyFormation: null, missingPlayers: [],
+        ppg: null, goalsForPerMatch: null, goalsAgainstPerMatch: null, avgCorners: null, avgYellowCards: null, avgRedCards: null, cleanSheetRate: null, failedToScoreRate: null, likelyFormation: null, missingPlayers: [],
       },
     },
     xgSummary: {
@@ -447,6 +500,10 @@ export async function getMatchAnalysisContext(matchDetails: any): Promise<MatchA
     getTeamXgSummary(homeTeamId, homeRecent),
     getTeamXgSummary(awayTeamId, awayRecent),
   ]);
+  const [homeDiscipline, awayDiscipline] = await Promise.all([
+    getTeamRecentDisciplineAndCorners(homeTeamId, homeRecent),
+    getTeamRecentDisciplineAndCorners(awayTeamId, awayRecent),
+  ]);
 
   const predictionFirst = prediction[0] || null;
   const fallbackProbabilities = deriveFallbackProbabilities(
@@ -467,6 +524,15 @@ export async function getMatchAnalysisContext(matchDetails: any): Promise<MatchA
   const hasInjuries = (homeInjuries?.length || 0) + (awayInjuries?.length || 0) > 0;
   const hasXg = (homeXg.samples || 0) > 0 || (awayXg.samples || 0) > 0;
 
+  const homeIntel = buildTeamIntel(homeTeamStats, homeInjuries, lineups, homeTeamId);
+  const awayIntel = buildTeamIntel(awayTeamStats, awayInjuries, lineups, awayTeamId);
+  homeIntel.avgCorners = homeDiscipline.avgCorners;
+  homeIntel.avgYellowCards = homeDiscipline.avgYellowCards;
+  homeIntel.avgRedCards = homeDiscipline.avgRedCards;
+  awayIntel.avgCorners = awayDiscipline.avgCorners;
+  awayIntel.avgYellowCards = awayDiscipline.avgYellowCards;
+  awayIntel.avgRedCards = awayDiscipline.avgRedCards;
+
   return {
     prediction: predictionFirst,
     probabilities,
@@ -475,8 +541,8 @@ export async function getMatchAnalysisContext(matchDetails: any): Promise<MatchA
     injuries: { home: homeInjuries, away: awayInjuries },
     recentForm: { home: homeRecent, away: awayRecent },
     teamIntel: {
-      home: buildTeamIntel(homeTeamStats, homeInjuries, lineups, homeTeamId),
-      away: buildTeamIntel(awayTeamStats, awayInjuries, lineups, awayTeamId),
+      home: homeIntel,
+      away: awayIntel,
     },
     xgSummary: { home: homeXg, away: awayXg },
     dataAvailability: {
