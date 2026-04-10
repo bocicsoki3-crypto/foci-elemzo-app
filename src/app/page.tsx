@@ -31,14 +31,30 @@ export default function Home() {
   const fetchMatches = async () => {
     setLoading(true);
     setError(null);
+    let didTimeout = false;
+    const loadingFailSafe = setTimeout(() => {
+      didTimeout = true;
+      setLoading(false);
+      setError('A meccsek betöltése túl sokáig tartott. Kérlek próbáld újra a Frissítés gombbal!');
+    }, 17000);
+
     try {
       const response = await axios.get('/api/matches', { timeout: 15000 });
-      setMatches(response.data);
+      if (didTimeout) return;
+      if (Array.isArray(response.data)) {
+        setMatches(response.data);
+      } else {
+        setError('Hibás válasz érkezett a szervertől. Próbáld újra később!');
+      }
     } catch (err) {
+      if (didTimeout) return;
       console.error('Error fetching matches:', err);
       setError('Nem sikerült betölteni a mérkőzéseket. Kérlek próbáld újra később!');
     } finally {
-      setLoading(false);
+      clearTimeout(loadingFailSafe);
+      if (!didTimeout) {
+        setLoading(false);
+      }
     }
   };
 
