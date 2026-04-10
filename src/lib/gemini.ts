@@ -332,6 +332,8 @@ MUKODESI SZABALYOK
 8) Az 1X2 szazalekok OSSZEGE legyen pontosan 100%.
 9) Minden szekcio vegen legyen egy rovid "Forras:" sor.
 10) Ha van prediction.percent adat, az 1X2 szazalekok azt kovessek.
+11) Hasznald kotelezoen a teamIntel mezot: PPG, GF/GA per meccs, clean sheet rate, failed-to-score rate, likely formation, missingPlayers.
+12) A missingPlayers alapjan konkretan jelezd a hianyzo kulcsembereket, ha vannak nevek.
 
 VALASZ FORMATUM:
 KIZAROLAG ervenyes JSON objektumot adj vissza, semmi egyeb szoveget.

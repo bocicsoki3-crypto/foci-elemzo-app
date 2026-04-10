@@ -21,6 +21,26 @@ export interface MatchAnalysisContext {
   lineups: any[];
   injuries: { home: any[]; away: any[] };
   recentForm: { home: any[]; away: any[] };
+  teamIntel: {
+    home: {
+      ppg: number | null;
+      goalsForPerMatch: number | null;
+      goalsAgainstPerMatch: number | null;
+      cleanSheetRate: number | null;
+      failedToScoreRate: number | null;
+      likelyFormation: string | null;
+      missingPlayers: string[];
+    };
+    away: {
+      ppg: number | null;
+      goalsForPerMatch: number | null;
+      goalsAgainstPerMatch: number | null;
+      cleanSheetRate: number | null;
+      failedToScoreRate: number | null;
+      likelyFormation: string | null;
+      missingPlayers: string[];
+    };
+  };
   xgSummary: {
     home: { avgXG: number | null; avgXGA: number | null; samples: number };
     away: { avgXG: number | null; avgXGA: number | null; samples: number };
@@ -40,6 +60,11 @@ async function safeApiGet(path: string, params: Record<string, any>) {
 function parseStatNumber(value: any) {
   if (value === null || value === undefined || value === '') return null;
   const parsed = Number.parseFloat(String(value).replace('%', '').trim());
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function toSafeNumber(value: any) {
+  const parsed = Number.parseFloat(String(value ?? '').replace('%', '').replace(',', '.'));
   return Number.isFinite(parsed) ? parsed : null;
 }
 
@@ -182,6 +207,44 @@ function deriveFallbackProbabilities(
   return normalizeTo100(home, draw, away);
 }
 
+function buildTeamIntel(teamStats: any, injuries: any[], lineups: any[], teamId: number) {
+  const played = toSafeNumber(teamStats?.fixtures?.played?.total) || 0;
+  const wins = toSafeNumber(teamStats?.fixtures?.wins?.total) || 0;
+  const draws = toSafeNumber(teamStats?.fixtures?.draws?.total) || 0;
+  const goalsFor = toSafeNumber(teamStats?.goals?.for?.total?.total);
+  const goalsAgainst = toSafeNumber(teamStats?.goals?.against?.total?.total);
+  const cleanSheets = toSafeNumber(teamStats?.clean_sheet?.total);
+  const failedToScore = toSafeNumber(teamStats?.failed_to_score?.total);
+
+  const ppg = played > 0 ? Number(((wins * 3 + draws) / played).toFixed(2)) : null;
+  const goalsForPerMatch = played > 0 && goalsFor !== null ? Number((goalsFor / played).toFixed(2)) : null;
+  const goalsAgainstPerMatch = played > 0 && goalsAgainst !== null ? Number((goalsAgainst / played).toFixed(2)) : null;
+  const cleanSheetRate = played > 0 && cleanSheets !== null ? Number(((cleanSheets / played) * 100).toFixed(1)) : null;
+  const failedToScoreRate = played > 0 && failedToScore !== null ? Number(((failedToScore / played) * 100).toFixed(1)) : null;
+
+  const lineup = lineups.find((item: any) => item?.team?.id === teamId);
+  const likelyFormation = lineup?.formation || null;
+
+  const missingPlayers = (injuries || [])
+    .slice(0, 8)
+    .map((item: any) => {
+      const name = item?.player?.name;
+      const reason = item?.player?.reason || item?.player?.type;
+      return name ? `${name}${reason ? ` (${reason})` : ''}` : null;
+    })
+    .filter(Boolean);
+
+  return {
+    ppg,
+    goalsForPerMatch,
+    goalsAgainstPerMatch,
+    cleanSheetRate,
+    failedToScoreRate,
+    likelyFormation,
+    missingPlayers,
+  };
+}
+
 export async function getMatches() {
   const today = format(new Date(), 'yyyy-MM-dd');
   const tomorrow = format(addDays(new Date(), 1), 'yyyy-MM-dd');
@@ -248,6 +311,14 @@ export async function getMatchAnalysisContext(matchDetails: any): Promise<MatchA
     lineups: [],
     injuries: { home: [], away: [] },
     recentForm: { home: [], away: [] },
+    teamIntel: {
+      home: {
+        ppg: null, goalsForPerMatch: null, goalsAgainstPerMatch: null, cleanSheetRate: null, failedToScoreRate: null, likelyFormation: null, missingPlayers: [],
+      },
+      away: {
+        ppg: null, goalsForPerMatch: null, goalsAgainstPerMatch: null, cleanSheetRate: null, failedToScoreRate: null, likelyFormation: null, missingPlayers: [],
+      },
+    },
     xgSummary: {
       home: { avgXG: null, avgXGA: null, samples: 0 },
       away: { avgXG: null, avgXGA: null, samples: 0 },
@@ -256,7 +327,9 @@ export async function getMatchAnalysisContext(matchDetails: any): Promise<MatchA
 
   if (!fixtureId || !homeTeamId || !awayTeamId) return defaultContext;
 
-  const [prediction, h2h, lineups, homeInjuries, awayInjuries, homeRecent, awayRecent] = await Promise.all([
+  const leagueId = matchDetails?.competition?.id;
+
+  const [prediction, h2h, lineups, homeInjuries, awayInjuries, homeRecent, awayRecent, homeTeamStats, awayTeamStats] = await Promise.all([
     safeApiGet('/predictions', { fixture: fixtureId }),
     safeApiGet('/fixtures/headtohead', { h2h: `${homeTeamId}-${awayTeamId}`, last: 5 }),
     safeApiGet('/fixtures/lineups', { fixture: fixtureId }),
@@ -264,6 +337,8 @@ export async function getMatchAnalysisContext(matchDetails: any): Promise<MatchA
     safeApiGet('/injuries', { team: awayTeamId, season }),
     safeApiGet('/fixtures', { team: homeTeamId, last: 5 }),
     safeApiGet('/fixtures', { team: awayTeamId, last: 5 }),
+    leagueId ? safeApiGet('/teams/statistics', { league: leagueId, season, team: homeTeamId }) : Promise.resolve([]),
+    leagueId ? safeApiGet('/teams/statistics', { league: leagueId, season, team: awayTeamId }) : Promise.resolve([]),
   ]);
 
   const [homeXg, awayXg] = await Promise.all([
@@ -283,6 +358,10 @@ export async function getMatchAnalysisContext(matchDetails: any): Promise<MatchA
     lineups,
     injuries: { home: homeInjuries, away: awayInjuries },
     recentForm: { home: homeRecent, away: awayRecent },
+    teamIntel: {
+      home: buildTeamIntel(homeTeamStats, homeInjuries, lineups, homeTeamId),
+      away: buildTeamIntel(awayTeamStats, awayInjuries, lineups, awayTeamId),
+    },
     xgSummary: { home: homeXg, away: awayXg },
   };
 }
