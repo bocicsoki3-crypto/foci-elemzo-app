@@ -453,26 +453,88 @@ export default function Home() {
                           Mentve: {new Date(activeModalAnalysis.createdAt).toLocaleString('hu-HU')}
                         </p>
                       </div>
-                      {activeModalAnalysis.analysis.split('\n').map((line, idx) => {
-                        const cleanLine = line.trim();
-                        if (!cleanLine) return null;
-                        if (cleanLine.startsWith('## ')) {
-                          return (
-                            <h4 key={idx} className="mt-6 mb-2 inline-flex rounded-full bg-cyan-500/20 px-3 py-1 text-sm font-semibold text-cyan-200">
-                              {cleanLine.replace('## ', '')}
-                            </h4>
-                          );
-                        }
-                        if (cleanLine.startsWith('- ') || cleanLine.startsWith('* ')) {
-                          return (
-                            <div key={idx} className="flex gap-2 text-sm text-slate-200">
-                              <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-cyan-400" />
-                              <p>{cleanLine.replace(/^[-*]\s*/, '')}</p>
+                      {activeModalAnalysis.structuredAnalysis ? (
+                        <>
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                            <div className="rounded-xl border border-slate-700 bg-slate-800/70 p-3">
+                              <p className="text-[11px] text-slate-400">Hazai %</p>
+                              <p className="text-2xl font-black text-white">{activeModalAnalysis.structuredAnalysis.probabilities.home}</p>
                             </div>
-                          );
-                        }
-                        return <p key={idx} className="text-sm text-slate-200 leading-relaxed">{cleanLine}</p>;
-                      })}
+                            <div className="rounded-xl border border-slate-700 bg-slate-800/70 p-3">
+                              <p className="text-[11px] text-slate-400">Döntetlen %</p>
+                              <p className="text-2xl font-black text-white">{activeModalAnalysis.structuredAnalysis.probabilities.draw}</p>
+                            </div>
+                            <div className="rounded-xl border border-slate-700 bg-slate-800/70 p-3">
+                              <p className="text-[11px] text-slate-400">Vendég %</p>
+                              <p className="text-2xl font-black text-white">{activeModalAnalysis.structuredAnalysis.probabilities.away}</p>
+                            </div>
+                            <div className="rounded-xl border border-slate-700 bg-slate-800/70 p-3">
+                              <p className="text-[11px] text-slate-400">Pontos</p>
+                              <p className="text-xl font-black text-white">{activeModalAnalysis.structuredAnalysis.correctScore.prediction}</p>
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                            {!!activeModalAnalysis.structuredAnalysis.goalMarkets.btts.pick && (
+                              <div className="rounded-xl border border-slate-700 bg-slate-800/70 p-3">
+                                <p className="text-[11px] text-slate-400">BTTS</p>
+                                <p className="text-lg font-bold text-white">{activeModalAnalysis.structuredAnalysis.goalMarkets.btts.pick}</p>
+                              </div>
+                            )}
+                            {!!activeModalAnalysis.structuredAnalysis.goalMarkets.overUnder25.pick && (
+                              <div className="rounded-xl border border-slate-700 bg-slate-800/70 p-3">
+                                <p className="text-[11px] text-slate-400">Over/Under 2.5</p>
+                                <p className="text-lg font-bold text-white">{activeModalAnalysis.structuredAnalysis.goalMarkets.overUnder25.pick}</p>
+                              </div>
+                            )}
+                            {!!activeModalAnalysis.structuredAnalysis.goalMarkets.overUnder35.pick && (
+                              <div className="rounded-xl border border-slate-700 bg-slate-800/70 p-3">
+                                <p className="text-[11px] text-slate-400">Over/Under 3.5</p>
+                                <p className="text-lg font-bold text-white">{activeModalAnalysis.structuredAnalysis.goalMarkets.overUnder35.pick}</p>
+                              </div>
+                            )}
+                          </div>
+
+                          {(activeModalAnalysis.structuredAnalysis.keyMetrics.availability.homeMissing > 0 ||
+                            activeModalAnalysis.structuredAnalysis.keyMetrics.availability.awayMissing > 0) && (
+                            <div className="grid grid-cols-2 gap-3">
+                              {activeModalAnalysis.structuredAnalysis.keyMetrics.availability.homeMissing > 0 && (
+                                <div className="rounded-xl border border-slate-700 bg-slate-800/70 p-3">
+                                  <p className="text-[11px] text-slate-400">Hiányzók (H)</p>
+                                  <p className="text-xl font-black text-white">{activeModalAnalysis.structuredAnalysis.keyMetrics.availability.homeMissing}</p>
+                                </div>
+                              )}
+                              {activeModalAnalysis.structuredAnalysis.keyMetrics.availability.awayMissing > 0 && (
+                                <div className="rounded-xl border border-slate-700 bg-slate-800/70 p-3">
+                                  <p className="text-[11px] text-slate-400">Hiányzók (V)</p>
+                                  <p className="text-xl font-black text-white">{activeModalAnalysis.structuredAnalysis.keyMetrics.availability.awayMissing}</p>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </>
+                      ) : (
+                        activeModalAnalysis.analysis.split('\n').map((line, idx) => {
+                          const cleanLine = line.trim();
+                          if (!cleanLine) return null;
+                          if (cleanLine.startsWith('## ')) {
+                            return (
+                              <h4 key={idx} className="mt-6 mb-2 inline-flex rounded-full bg-cyan-500/20 px-3 py-1 text-sm font-semibold text-cyan-200">
+                                {cleanLine.replace('## ', '')}
+                              </h4>
+                            );
+                          }
+                          if (cleanLine.startsWith('- ') || cleanLine.startsWith('* ')) {
+                            return (
+                              <div key={idx} className="flex gap-2 text-sm text-slate-200">
+                                <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-cyan-400" />
+                                <p>{cleanLine.replace(/^[-*]\s*/, '')}</p>
+                              </div>
+                            );
+                          }
+                          return <p key={idx} className="text-sm text-slate-200 leading-relaxed">{cleanLine}</p>;
+                        })
+                      )}
                     </div>
                   ) : (
                     <div className="h-full flex items-center justify-center text-slate-400">
