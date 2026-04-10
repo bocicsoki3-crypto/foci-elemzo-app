@@ -16,6 +16,11 @@ export async function getMatches() {
   const tomorrow = format(addDays(new Date(), 1), 'yyyy-MM-dd');
 
   try {
+    if (!API_KEY || API_KEY === 'your_football_api_key_here') {
+      console.log('No valid API key found. Using mock data.');
+      return getMockMatches();
+    }
+
     const response = await footballApi.get(`/matches`, {
       params: {
         dateFrom: today,
@@ -27,10 +32,8 @@ export async function getMatches() {
   } catch (error) {
     console.error('Error fetching football matches:', error);
     // Return mock data if API key is missing or error occurs
-    if (!API_KEY || API_KEY === 'your_football_api_key_here') {
-      return getMockMatches();
-    }
-    throw error;
+    console.log('Falling back to mock matches due to error or missing API key.');
+    return getMockMatches();
   }
 }
 
