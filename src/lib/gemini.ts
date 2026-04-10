@@ -1,4 +1,5 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import type { MatchAnalysisContext } from "./football";
 
 const API_KEY = process.env.GEMINI_API_KEY;
 
@@ -47,7 +48,7 @@ async function getAvailableModelNames() {
   }
 }
 
-export async function analyzeMatch(matchDetails: any) {
+export async function analyzeMatch(matchDetails: any, context?: MatchAnalysisContext) {
   const competitionName = matchDetails?.competition?.name || "Ismeretlen bajnokság";
   const homeTeamName = matchDetails?.homeTeam?.name || "Ismeretlen hazai csapat";
   const awayTeamName = matchDetails?.awayTeam?.name || "Ismeretlen vendég csapat";
@@ -56,7 +57,7 @@ export async function analyzeMatch(matchDetails: any) {
 
   const prompt = `
 Te egy profi futballelemzo es kockazatkezelo fogadasi szakerto vagy.
-Feladatod: adj hasznalhato, rovid, de szakmai meccselemzest magyar nyelven.
+Feladatod: adj hasznalhato, rovid, de szakmai meccselemzest magyar nyelven, valos adatokra tamaszkodva.
 
 MERKOZES ADATOK
 - Bajnoksag: ${competitionName}
@@ -64,13 +65,16 @@ MERKOZES ADATOK
 - Hazai: ${homeTeamName}
 - Vendeg: ${awayTeamName}
 - Kezdes (UTC): ${kickoff}
+- Elemzesi adatcsomag (JSON): ${JSON.stringify(context || {}, null, 2)}
 
 MUKODESI SZABALYOK
 1) Ha egy adat nem biztos (pl. serulesek, varhato kezdok), jelezd egyertelmuen: "nem megerositett".
 2) Ne allits tenykent olyat, amit nem tudsz ellenorizni.
 3) Keruld a tulhypeolt, clickbait mondatokat.
-4) Adj gyakorlati, indokolt tippeket (nem csak vegeredmenyt).
-5) Legyen tomor: max 2200 karakter.
+4) Prioritas: prediction, h2h, serulesek, lineup, forma, xG/xGA adatok.
+5) Adj gyakorlati, indokolt tippeket (nem csak vegeredmenyt).
+6) Ha xG/xGA nincs, ezt kulon jelold.
+7) Legyen tomor: max 2200 karakter.
 
 VALASZ FORMATUM (MARKDOWN, pontosan ezekkel a cimekkel)
 ## 1) Gyors osszkep
