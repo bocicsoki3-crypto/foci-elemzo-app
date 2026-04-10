@@ -7,7 +7,45 @@ if (!API_KEY) {
 }
 
 const genAI = new GoogleGenerativeAI(API_KEY || "");
-const MODEL_CANDIDATES = ["gemini-2.0-flash", "gemini-1.5-flash"];
+const MODEL_CANDIDATES = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-flash-latest"];
+
+let cachedModelNames: string[] | null = null;
+
+async function getAvailableModelNames() {
+  if (!API_KEY) return MODEL_CANDIDATES;
+  if (cachedModelNames) return cachedModelNames;
+
+  try {
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models?key=${API_KEY}`,
+      { method: "GET" }
+    );
+
+    if (!response.ok) {
+      throw new Error(`Model list HTTP ${response.status}`);
+    }
+
+    const data = await response.json();
+    const models = Array.isArray(data?.models) ? data.models : [];
+
+    const discovered = models
+      .filter((model: any) => Array.isArray(model?.supportedGenerationMethods) && model.supportedGenerationMethods.includes("generateContent"))
+      .map((model: any) => String(model?.name || "").replace(/^models\//, ""))
+      .filter(Boolean);
+
+    // Keep preferred order first, then append any additional discovered models.
+    const ordered = [
+      ...MODEL_CANDIDATES.filter((name) => discovered.includes(name)),
+      ...discovered.filter((name: string) => !MODEL_CANDIDATES.includes(name)),
+    ];
+
+    cachedModelNames = ordered.length > 0 ? ordered : MODEL_CANDIDATES;
+    return cachedModelNames;
+  } catch (error) {
+    console.error("Failed to list Gemini models, using static fallback list:", error);
+    return MODEL_CANDIDATES;
+  }
+}
 
 export async function analyzeMatch(matchDetails: any) {
   const competitionName = matchDetails?.competition?.name || "Ismeretlen bajnokság";
@@ -72,8 +110,10 @@ A stilus legyen professzionalis, kozertheto, targyilagos.
     return "Kérlek add meg a Gemini API kulcsodat az elemzéshez! Addig is, itt egy minta elemzés: Ez egy nagyon izgalmas mérkőzés lesz a két top csapat között. Mindkét fél jó formában van, így szoros küzdelemre számítunk. Tipp: Mindkét csapat szerez gólt (BTS).";
   }
 
+  const candidateModels = await getAvailableModelNames();
+
   let lastError: unknown = null;
-  for (const modelName of MODEL_CANDIDATES) {
+  for (const modelName of candidateModels) {
     try {
       const model = genAI.getGenerativeModel({ model: modelName });
       const result = await model.generateContent(prompt);
