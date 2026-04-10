@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { RefreshCw, Trophy, Info, ShieldCheck, ChevronDown, ChevronUp, ListFilter, Search, X, History } from 'lucide-react';
+import { RefreshCw, Trophy, Info, ShieldCheck, ListFilter, Search, X, History } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import MatchCard from '@/components/MatchCard';
 import AnalysisResult from '@/components/AnalysisResult';
@@ -56,7 +56,6 @@ export default function Home() {
   const [riskProfile, setRiskProfile] = useState<RiskProfile>('kiegyensulyozott');
   const [bankroll, setBankroll] = useState<number>(100);
   const [searchQuery, setSearchQuery] = useState('');
-  const [expandedLeagues, setExpandedLeagues] = useState<Set<string>>(new Set());
   const [savedAnalyses, setSavedAnalyses] = useState<SavedAnalysis[]>([]);
   const [isAnalysisModalOpen, setIsAnalysisModalOpen] = useState(false);
   const [activeModalAnalysis, setActiveModalAnalysis] = useState<SavedAnalysis | null>(null);
@@ -65,16 +64,6 @@ export default function Home() {
     !value.includes('Hiba történt') &&
     !value.includes('Kérlek add meg a Gemini API kulcsodat') &&
     !value.includes('A Gemini szolgáltatás most nem elérhető');
-
-  const toggleLeague = (leagueName: string) => {
-    const newExpanded = new Set(expandedLeagues);
-    if (newExpanded.has(leagueName)) {
-      newExpanded.delete(leagueName);
-    } else {
-      newExpanded.add(leagueName);
-    }
-    setExpandedLeagues(newExpanded);
-  };
 
   const fetchMatches = async () => {
     setLoading(true);
@@ -249,6 +238,8 @@ export default function Home() {
       ),
     ] as [string, any[]]);
 
+  const flatSortedMatches = sortedLeagueEntries.flatMap(([, leagueMatches]) => leagueMatches);
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950 text-slate-100 font-sans">
       {/* Header */}
@@ -332,62 +323,19 @@ export default function Home() {
                       <Info className="w-8 h-8 mx-auto mb-2 opacity-50" />
                       {error}
                     </div>
-                  ) : sortedLeagueEntries.length === 0 ? (
+                  ) : flatSortedMatches.length === 0 ? (
                     <div className="p-12 text-center bg-white border border-slate-100 rounded-2xl text-slate-400 font-medium">
                       Nincs találat erre a csapatnévre.
                     </div>
                   ) : (
-                    sortedLeagueEntries.map(([leagueName, leagueMatches]) => {
-                      const isExpanded = expandedLeagues.has(leagueName);
-                      const emblem = leagueMatches[0]?.competition?.emblem;
-
-                      return (
-                        <div key={leagueName} className="bg-slate-900/70 rounded-xl border border-slate-700 shadow-sm overflow-hidden mb-3">
-                          <button
-                            onClick={() => toggleLeague(leagueName)}
-                            className="w-full flex items-center justify-between p-4 bg-slate-800/60 hover:bg-slate-800 transition-colors"
-                          >
-                            <div className="flex items-center gap-3">
-                              {emblem && (
-                                <img src={emblem} alt={leagueName} className="w-6 h-6 object-contain" />
-                              )}
-                              <span className="font-bold text-slate-100">{leagueName}</span>
-                              <span className="bg-slate-900 px-2 py-0.5 rounded-full text-xs font-semibold text-slate-300 border border-slate-700">
-                                {leagueMatches.length}
-                              </span>
-                            </div>
-                            {isExpanded ? (
-                              <ChevronUp className="w-5 h-5 text-slate-400" />
-                            ) : (
-                              <ChevronDown className="w-5 h-5 text-slate-400" />
-                            )}
-                          </button>
-
-                          <AnimatePresence>
-                            {isExpanded && (
-                              <motion.div
-                                initial={{ height: 0, opacity: 0 }}
-                                animate={{ height: 'auto', opacity: 1 }}
-                                exit={{ height: 0, opacity: 0 }}
-                                transition={{ duration: 0.2 }}
-                                className="overflow-hidden"
-                              >
-                                <div className="p-4 flex flex-col gap-3 border-t border-slate-700 bg-slate-900/60">
-                                  {leagueMatches.map((match) => (
-                                    <MatchCard
-                                      key={match.id}
-                                      match={match}
-                                      onSelect={handleSelectMatch}
-                                      isSelected={selectedMatch?.id === match.id}
-                                    />
-                                  ))}
-                                </div>
-                              </motion.div>
-                            )}
-                          </AnimatePresence>
-                        </div>
-                      );
-                    })
+                    flatSortedMatches.map((match) => (
+                      <MatchCard
+                        key={match.id}
+                        match={match}
+                        onSelect={handleSelectMatch}
+                        isSelected={selectedMatch?.id === match.id}
+                      />
+                    ))
                   )}
                 </AnimatePresence>
               </div>
