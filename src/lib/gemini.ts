@@ -7,10 +7,9 @@ if (!API_KEY) {
 }
 
 const genAI = new GoogleGenerativeAI(API_KEY || "");
+const MODEL_CANDIDATES = ["gemini-2.0-flash", "gemini-1.5-flash"];
 
 export async function analyzeMatch(matchDetails: any) {
-  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-
   const competitionName = matchDetails?.competition?.name || "Ismeretlen bajnokság";
   const homeTeamName = matchDetails?.homeTeam?.name || "Ismeretlen hazai csapat";
   const awayTeamName = matchDetails?.awayTeam?.name || "Ismeretlen vendég csapat";
@@ -69,15 +68,24 @@ VALASZ FORMATUM (MARKDOWN, pontosan ezekkel a cimekkel)
 A stilus legyen professzionalis, kozertheto, targyilagos.
   `;
 
-  try {
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    return response.text();
-  } catch (error) {
-    console.error("Error with Gemini AI:", error);
-    if (!API_KEY || API_KEY === 'your_gemini_api_key_here') {
-      return "Kérlek add meg a Gemini API kulcsodat az elemzéshez! Addig is, itt egy minta elemzés: Ez egy nagyon izgalmas mérkőzés lesz a két top csapat között. Mindkét fél jó formában van, így szoros küzdelemre számítunk. Tipp: Mindkét csapat szerez gólt (BTS).";
-    }
-    throw error;
+  if (!API_KEY || API_KEY === 'your_gemini_api_key_here') {
+    return "Kérlek add meg a Gemini API kulcsodat az elemzéshez! Addig is, itt egy minta elemzés: Ez egy nagyon izgalmas mérkőzés lesz a két top csapat között. Mindkét fél jó formában van, így szoros küzdelemre számítunk. Tipp: Mindkét csapat szerez gólt (BTS).";
   }
+
+  let lastError: unknown = null;
+  for (const modelName of MODEL_CANDIDATES) {
+    try {
+      const model = genAI.getGenerativeModel({ model: modelName });
+      const result = await model.generateContent(prompt);
+      const response = await result.response;
+      const text = response.text();
+      if (text?.trim()) return text;
+    } catch (error) {
+      lastError = error;
+      console.error(`Error with Gemini model ${modelName}:`, error);
+    }
+  }
+
+  const rawMessage = lastError instanceof Error ? lastError.message : "Ismeretlen Gemini hiba";
+  throw new Error(`A Gemini szolgáltatás most nem elérhető (${rawMessage}).`);
 }

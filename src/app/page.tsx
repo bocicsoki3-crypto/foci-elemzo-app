@@ -67,7 +67,12 @@ export default function Home() {
       setAnalysis(response.data.analysis);
     } catch (err) {
       console.error('Error analyzing match:', err);
-      setAnalysis('Hiba történt az elemzés során. Kérlek próbáld újra!');
+      if (axios.isAxiosError(err)) {
+        const apiError = typeof err.response?.data?.error === 'string' ? err.response.data.error : null;
+        setAnalysis(apiError || 'Hiba történt az elemzés során. Kérlek próbáld újra!');
+      } else {
+        setAnalysis('Hiba történt az elemzés során. Kérlek próbáld újra!');
+      }
     } finally {
       setAnalysisLoading(false);
     }

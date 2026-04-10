@@ -8,6 +8,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ analysis });
   } catch (error) {
     console.error('API Error analyzing match:', error);
-    return NextResponse.json({ error: 'Failed to analyze match' }, { status: 500 });
+    const message = error instanceof Error ? error.message : 'Failed to analyze match';
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
