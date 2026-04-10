@@ -229,6 +229,54 @@ export default function AnalysisResult({
                 {!!structuredAnalysis.tipsByRisk.agressziv.tip && <div className={card}><p className="text-[11px] text-slate-400">Agresszív tipp</p><p className="text-base font-semibold text-white">{structuredAnalysis.tipsByRisk.agressziv.tip}</p></div>}
               </div>
 
+              {!!structuredAnalysis.committee && (
+                <div className={card}>
+                  <p className="text-sm font-semibold text-white mb-3">AI Bizottság (6 tag)</p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+                    <div className="rounded-lg border border-slate-700 bg-slate-950/60 p-3">
+                      <p className="text-slate-300 font-semibold">1) Adatgyűjtő</p>
+                      {(structuredAnalysis.committee.statistician.findings || []).slice(0, 3).map((item, idx) => (
+                        <p key={`st-${idx}`} className="text-slate-300 mt-1">- {item}</p>
+                      ))}
+                    </div>
+                    <div className="rounded-lg border border-slate-700 bg-slate-950/60 p-3">
+                      <p className="text-slate-300 font-semibold">2) Taktikai elemző</p>
+                      {(structuredAnalysis.committee.tacticalCoach.findings || []).slice(0, 3).map((item, idx) => (
+                        <p key={`ta-${idx}`} className="text-slate-300 mt-1">- {item}</p>
+                      ))}
+                    </div>
+                    <div className="rounded-lg border border-slate-700 bg-slate-950/60 p-3">
+                      <p className="text-slate-300 font-semibold">3) Hírszerző</p>
+                      {(structuredAnalysis.committee.newsroomScout.findings || []).slice(0, 3).map((item, idx) => (
+                        <p key={`nw-${idx}`} className="text-slate-300 mt-1">- {item}</p>
+                      ))}
+                    </div>
+                    <div className="rounded-lg border border-slate-700 bg-slate-950/60 p-3">
+                      <p className="text-slate-300 font-semibold">4) Ördög ügyvédje</p>
+                      {(structuredAnalysis.committee.devilsAdvocate.findings || []).slice(0, 3).map((item, idx) => (
+                        <p key={`dv-${idx}`} className="text-slate-300 mt-1">- {item}</p>
+                      ))}
+                    </div>
+                    <div className="rounded-lg border border-slate-700 bg-slate-950/60 p-3">
+                      <p className="text-slate-300 font-semibold">5) Matekos</p>
+                      {(structuredAnalysis.committee.oddsQuant.findings || []).slice(0, 3).map((item, idx) => (
+                        <p key={`oq-${idx}`} className="text-slate-300 mt-1">- {item}</p>
+                      ))}
+                      {(structuredAnalysis.committee.oddsQuant.valueAngles || []).slice(0, 2).map((item, idx) => (
+                        <p key={`va-${idx}`} className="text-cyan-300 mt-1">- Value: {item}</p>
+                      ))}
+                    </div>
+                    <div className="rounded-lg border border-cyan-500/30 bg-cyan-500/10 p-3">
+                      <p className="text-cyan-200 font-semibold">6) Elnök</p>
+                      <p className="text-white mt-1">{structuredAnalysis.committee.chairman.finalVerdict}</p>
+                      {(structuredAnalysis.committee.chairman.rationale || []).slice(0, 3).map((item, idx) => (
+                        <p key={`ch-${idx}`} className="text-slate-200 mt-1">- {item}</p>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {(structuredAnalysis.keyMetrics.availability.homeMissing > 0 || structuredAnalysis.keyMetrics.availability.awayMissing > 0 || structuredAnalysis.keyMetrics.formations.home || structuredAnalysis.keyMetrics.formations.away) && (
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                   {structuredAnalysis.keyMetrics.availability.homeMissing > 0 && <div className={card}><p className="text-[11px] text-slate-400">Hiányzók (H)</p><p className="text-xl font-black text-white">{structuredAnalysis.keyMetrics.availability.homeMissing}</p></div>}

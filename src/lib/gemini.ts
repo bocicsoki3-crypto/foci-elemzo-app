@@ -44,6 +44,14 @@ export interface StructuredAnalysis {
     sampleInfo: string;
     freshness: string;
   };
+  committee: {
+    statistician: { findings: string[]; confidence: number };
+    tacticalCoach: { findings: string[]; confidence: number };
+    newsroomScout: { findings: string[]; confidence: number };
+    devilsAdvocate: { findings: string[]; confidence: number };
+    oddsQuant: { findings: string[]; confidence: number; valueAngles?: string[] };
+    chairman: { finalVerdict: string; rationale: string[]; confidence: number };
+  };
   keyMetrics: {
     xg: { home: number | null; away: number | null; xgaHome: number | null; xgaAway: number | null };
     ppg: { home: number | null; away: number | null };
@@ -193,6 +201,18 @@ function buildMarkdownFromStructured(structured: StructuredAnalysis) {
   lines.push(`- Mintaszam: ${structured.dataQuality.sampleInfo}`);
   lines.push(`- Frissesseg: ${structured.dataQuality.freshness}`);
   structured.explainability.forEach((driver) => lines.push(`- ${driver.factor} (${driver.weight}%): ${driver.note}`));
+  lines.push("");
+  lines.push("## 8) AI Bizottsag (6 tag)");
+  lines.push(`- Adatgyujto (bizalom ${structured.committee.statistician.confidence}/10): ${structured.committee.statistician.findings.join(" | ") || "nincs megbizhato adat"}`);
+  lines.push(`- Taktikai elemzo (bizalom ${structured.committee.tacticalCoach.confidence}/10): ${structured.committee.tacticalCoach.findings.join(" | ") || "nincs megbizhato adat"}`);
+  lines.push(`- Hirszerzo (bizalom ${structured.committee.newsroomScout.confidence}/10): ${structured.committee.newsroomScout.findings.join(" | ") || "nincs megbizhato adat"}`);
+  lines.push(`- Ordog ugyvedje (bizalom ${structured.committee.devilsAdvocate.confidence}/10): ${structured.committee.devilsAdvocate.findings.join(" | ") || "nincs megbizhato adat"}`);
+  lines.push(`- Matekos (bizalom ${structured.committee.oddsQuant.confidence}/10): ${structured.committee.oddsQuant.findings.join(" | ") || "nincs megbizhato adat"}`);
+  if ((structured.committee.oddsQuant.valueAngles || []).length > 0) {
+    lines.push(`- Value szogek: ${structured.committee.oddsQuant.valueAngles?.join(" | ")}`);
+  }
+  lines.push(`- Elnok (bizalom ${structured.committee.chairman.confidence}/10): ${structured.committee.chairman.finalVerdict}`);
+  structured.committee.chairman.rationale.forEach((item) => lines.push(`- Elnok indok: ${item}`));
   return lines.join("\n");
 }
 
@@ -213,6 +233,9 @@ function coerceStructured(parsed: any, context?: MatchAnalysisContext): Structur
     context?.dataAvailability?.news ? 'news' : null,
     'recentForm',
   ].filter(Boolean) as string[];
+  const firstHalfSignal = context?.marketSignals?.firstHalf1x2;
+  const corners75Signal = context?.marketSignals?.corners75;
+  const cards35Signal = context?.marketSignals?.cards35;
   const base: StructuredAnalysis = {
     matchSummary: Array.isArray(parsed?.matchSummary) ? parsed.matchSummary.slice(0, 6) : [],
     probabilities: {
@@ -235,16 +258,20 @@ function coerceStructured(parsed: any, context?: MatchAnalysisContext): Structur
         reason: parsed?.goalMarkets?.btts?.reason || "nem megerositett",
       },
       firstHalf: {
-        pick: parsed?.goalMarkets?.firstHalf?.pick || "Nincs eleg adat",
-        reason: parsed?.goalMarkets?.firstHalf?.reason || "nem megerositett",
+        pick: firstHalfSignal?.pick
+          ? `Félidő ${firstHalfSignal.pick} (${firstHalfSignal.homePct ?? '-'} / ${firstHalfSignal.drawPct ?? '-'} / ${firstHalfSignal.awayPct ?? '-'}%)`
+          : (parsed?.goalMarkets?.firstHalf?.pick || "Nincs eleg adat"),
+        reason: firstHalfSignal?.pick
+          ? "Poisson félidő-modell (hazai/döntetlen/vendég)."
+          : (parsed?.goalMarkets?.firstHalf?.reason || "nem megerositett"),
       },
       corners: {
-        line: parsed?.goalMarkets?.corners?.line || '9.5',
-        pick: parsed?.goalMarkets?.corners?.pick || 'Nincs eleg adat',
+        line: String(corners75Signal?.line ?? parsed?.goalMarkets?.corners?.line ?? '7.5'),
+        pick: corners75Signal?.pick || parsed?.goalMarkets?.corners?.pick || 'Nincs eleg adat',
       },
       cards: {
-        line: parsed?.goalMarkets?.cards?.line || '3.5',
-        pick: parsed?.goalMarkets?.cards?.pick || 'Nincs eleg adat',
+        line: String(cards35Signal?.line ?? parsed?.goalMarkets?.cards?.line ?? '3.5'),
+        pick: cards35Signal?.pick || parsed?.goalMarkets?.cards?.pick || 'Nincs eleg adat',
       },
     },
     tipsByRisk: {
@@ -280,6 +307,48 @@ function coerceStructured(parsed: any, context?: MatchAnalysisContext): Structur
           : computedCoverage,
       sampleInfo: parsed?.dataQuality?.sampleInfo || "nem megerositett",
       freshness: parsed?.dataQuality?.freshness || "nem megerositett",
+    },
+    committee: {
+      statistician: {
+        findings: Array.isArray(parsed?.committee?.statistician?.findings)
+          ? parsed.committee.statistician.findings.slice(0, 4)
+          : [],
+        confidence: clampConfidence(Number(parsed?.committee?.statistician?.confidence)),
+      },
+      tacticalCoach: {
+        findings: Array.isArray(parsed?.committee?.tacticalCoach?.findings)
+          ? parsed.committee.tacticalCoach.findings.slice(0, 4)
+          : [],
+        confidence: clampConfidence(Number(parsed?.committee?.tacticalCoach?.confidence)),
+      },
+      newsroomScout: {
+        findings: Array.isArray(parsed?.committee?.newsroomScout?.findings)
+          ? parsed.committee.newsroomScout.findings.slice(0, 4)
+          : [],
+        confidence: clampConfidence(Number(parsed?.committee?.newsroomScout?.confidence)),
+      },
+      devilsAdvocate: {
+        findings: Array.isArray(parsed?.committee?.devilsAdvocate?.findings)
+          ? parsed.committee.devilsAdvocate.findings.slice(0, 4)
+          : [],
+        confidence: clampConfidence(Number(parsed?.committee?.devilsAdvocate?.confidence)),
+      },
+      oddsQuant: {
+        findings: Array.isArray(parsed?.committee?.oddsQuant?.findings)
+          ? parsed.committee.oddsQuant.findings.slice(0, 4)
+          : [],
+        confidence: clampConfidence(Number(parsed?.committee?.oddsQuant?.confidence)),
+        valueAngles: Array.isArray(parsed?.committee?.oddsQuant?.valueAngles)
+          ? parsed.committee.oddsQuant.valueAngles.slice(0, 3)
+          : [],
+      },
+      chairman: {
+        finalVerdict: parsed?.committee?.chairman?.finalVerdict || "Nincs eleg adat",
+        rationale: Array.isArray(parsed?.committee?.chairman?.rationale)
+          ? parsed.committee.chairman.rationale.slice(0, 4)
+          : [],
+        confidence: clampConfidence(Number(parsed?.committee?.chairman?.confidence)),
+      },
     },
     keyMetrics: {
       xg: {
@@ -410,6 +479,17 @@ MUKODESI SZABALYOK
 13) Hasznald a newsIntel listat csak bizonyitott tenyhez.
 14) Ha egy allitas newsIntel alapjan keszul, jelold "hirforras" cimkevel.
 15) Szigoruan tilos hianyzo adatot kitalalni: ha nincs adat, irj "nincs megbizhato adat".
+16) A goalMarkets.corners mezoben kotelezoen a 7.5-os line-ra adj tippet (Over vagy Under).
+17) A goalMarkets.cards mezoben kotelezoen a 3.5-os line-ra adj tippet (Over vagy Under).
+18) A goalMarkets.firstHalf mezoben kotelezoen 1X2 tippet adj (Hazai / X / Vendeg).
+19) Szimulalj 6 tagu AI bizottsagot kulon szerepkorokkel, es a committee mezot mindenkepp toltsd ki.
+20) committee tagok:
+   - statistician: csak nyers statisztika (xG, labdabirtoklas, passz, PPG, GF/GA)
+   - tacticalCoach: felallas, presszing, matchup
+   - newsroomScout: serultek, eltiltasok, csapathirek
+   - devilsAdvocate: favorit ellenerv
+   - oddsQuant: valoszinuseg vs odds, value
+   - chairman: vegso dontes es rovid indoklas
 
 VALASZ FORMATUM:
 KIZAROLAG ervenyes JSON objektumot adj vissza, semmi egyeb szoveget.
@@ -422,8 +502,8 @@ Schema:
     "overUnder25": { "pick": "...", "reason": "..." },
     "overUnder35": { "pick": "...", "reason": "..." },
     "btts": { "pick": "...", "reason": "..." },
-    "firstHalf": { "pick": "...", "reason": "..." },
-    "corners": { "line": "9.5", "pick": "..." },
+    "firstHalf": { "pick": "Hazai|X|Vendeg", "reason": "..." },
+    "corners": { "line": "7.5", "pick": "Over 7.5|Under 7.5" },
     "cards": { "line": "3.5", "pick": "..." }
   },
   "tipsByRisk": {
@@ -438,6 +518,14 @@ Schema:
     "sourceCoverage": ["prediction","h2h","injuries","lineups","recentForm","xG/xGA"],
     "sampleInfo": "...",
     "freshness": "..."
+  },
+  "committee": {
+    "statistician": { "findings": ["..."], "confidence": 0 },
+    "tacticalCoach": { "findings": ["..."], "confidence": 0 },
+    "newsroomScout": { "findings": ["..."], "confidence": 0 },
+    "devilsAdvocate": { "findings": ["..."], "confidence": 0 },
+    "oddsQuant": { "findings": ["..."], "confidence": 0, "valueAngles": ["..."] },
+    "chairman": { "finalVerdict": "...", "rationale": ["..."], "confidence": 0 }
   }
 }
   `;
