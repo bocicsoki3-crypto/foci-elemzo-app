@@ -33,6 +33,11 @@ function parseSections(analysis: string) {
   return sections.filter((section) => section.lines.join('').trim() || section.title !== 'Elemzés');
 }
 
+function v(value: number | null | undefined, suffix = '') {
+  if (value === null || value === undefined || Number.isNaN(value)) return '-';
+  return `${value}${suffix}`;
+}
+
 export default function AnalysisResult({
   analysis,
   structuredAnalysis,
@@ -138,26 +143,68 @@ export default function AnalysisResult({
               className="space-y-4"
             >
               {structuredAnalysis && (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                  <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3">
-                    <p className="text-xs font-semibold text-emerald-700">1X2</p>
-                    <p className="text-sm text-emerald-800">
-                      H {structuredAnalysis.probabilities.home}% - D {structuredAnalysis.probabilities.draw}% - V {structuredAnalysis.probabilities.away}%
-                    </p>
+                <div className="space-y-3">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3">
+                      <p className="text-[11px] font-semibold text-emerald-700">Hazai %</p>
+                      <p className="text-xl font-black text-emerald-800">{structuredAnalysis.probabilities.home}</p>
+                    </div>
+                    <div className="rounded-xl border border-amber-200 bg-amber-50 p-3">
+                      <p className="text-[11px] font-semibold text-amber-700">Döntetlen %</p>
+                      <p className="text-xl font-black text-amber-800">{structuredAnalysis.probabilities.draw}</p>
+                    </div>
+                    <div className="rounded-xl border border-blue-200 bg-blue-50 p-3">
+                      <p className="text-[11px] font-semibold text-blue-700">Vendég %</p>
+                      <p className="text-xl font-black text-blue-800">{structuredAnalysis.probabilities.away}</p>
+                    </div>
+                    <div className="rounded-xl border border-violet-200 bg-violet-50 p-3">
+                      <p className="text-[11px] font-semibold text-violet-700">Bizalom</p>
+                      <p className="text-xl font-black text-violet-800">{structuredAnalysis.correctScore.confidence}/10</p>
+                    </div>
                   </div>
-                  <div className="rounded-xl border border-violet-200 bg-violet-50 p-3">
-                    <p className="text-xs font-semibold text-violet-700">Adatbizalom</p>
-                    <p className="text-sm text-violet-800">{structuredAnalysis.dataQuality.confidenceLabel}</p>
-                    <p className="text-xs text-violet-700">{structuredAnalysis.dataQuality.sampleInfo}</p>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div className="rounded-xl border border-slate-700 bg-slate-800/70 p-3">
+                      <p className="text-xs font-semibold text-slate-300 mb-2">xG / xGA</p>
+                      <div className="grid grid-cols-3 text-xs text-slate-300 gap-1">
+                        <p></p><p className="font-semibold">Hazai</p><p className="font-semibold">Vendég</p>
+                        <p>xG</p><p>{v(structuredAnalysis.keyMetrics.xg.home)}</p><p>{v(structuredAnalysis.keyMetrics.xg.away)}</p>
+                        <p>xGA</p><p>{v(structuredAnalysis.keyMetrics.xg.xgaHome)}</p><p>{v(structuredAnalysis.keyMetrics.xg.xgaAway)}</p>
+                      </div>
+                    </div>
+
+                    <div className="rounded-xl border border-slate-700 bg-slate-800/70 p-3">
+                      <p className="text-xs font-semibold text-slate-300 mb-2">PPG / Gólátlag</p>
+                      <div className="grid grid-cols-3 text-xs text-slate-300 gap-1">
+                        <p></p><p className="font-semibold">Hazai</p><p className="font-semibold">Vendég</p>
+                        <p>PPG</p><p>{v(structuredAnalysis.keyMetrics.ppg.home)}</p><p>{v(structuredAnalysis.keyMetrics.ppg.away)}</p>
+                        <p>GF/meccs</p><p>{v(structuredAnalysis.keyMetrics.goalsPerMatch.homeFor)}</p><p>{v(structuredAnalysis.keyMetrics.goalsPerMatch.awayFor)}</p>
+                        <p>GA/meccs</p><p>{v(structuredAnalysis.keyMetrics.goalsPerMatch.homeAgainst)}</p><p>{v(structuredAnalysis.keyMetrics.goalsPerMatch.awayAgainst)}</p>
+                      </div>
+                    </div>
                   </div>
-                  <div className="rounded-xl border border-sky-200 bg-sky-50 p-3">
-                    <p className="text-xs font-semibold text-sky-700">Pontos tipp</p>
-                    <p className="text-sm text-sky-800">{structuredAnalysis.correctScore.prediction}</p>
-                    <p className="text-xs text-sky-700">Bizalom: {structuredAnalysis.correctScore.confidence}/10</p>
+
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <div className="rounded-xl border border-red-200 bg-red-50 p-3">
+                      <p className="text-[11px] font-semibold text-red-700">Hiányzók (H)</p>
+                      <p className="text-lg font-black text-red-800">{structuredAnalysis.keyMetrics.availability.homeMissing}</p>
+                    </div>
+                    <div className="rounded-xl border border-red-200 bg-red-50 p-3">
+                      <p className="text-[11px] font-semibold text-red-700">Hiányzók (V)</p>
+                      <p className="text-lg font-black text-red-800">{structuredAnalysis.keyMetrics.availability.awayMissing}</p>
+                    </div>
+                    <div className="rounded-xl border border-cyan-200 bg-cyan-50 p-3">
+                      <p className="text-[11px] font-semibold text-cyan-700">Felállás (H)</p>
+                      <p className="text-sm font-bold text-cyan-800">{structuredAnalysis.keyMetrics.formations.home || '-'}</p>
+                    </div>
+                    <div className="rounded-xl border border-cyan-200 bg-cyan-50 p-3">
+                      <p className="text-[11px] font-semibold text-cyan-700">Felállás (V)</p>
+                      <p className="text-sm font-bold text-cyan-800">{structuredAnalysis.keyMetrics.formations.away || '-'}</p>
+                    </div>
                   </div>
                 </div>
               )}
-              {parseSections(analysis).map((section, sectionIndex) => (
+              {parseSections(analysis).slice(0, 2).map((section, sectionIndex) => (
                 <div
                   key={`${section.title}-${sectionIndex}`}
                   className="rounded-xl border border-slate-700 bg-slate-800/60 p-4 shadow-sm"

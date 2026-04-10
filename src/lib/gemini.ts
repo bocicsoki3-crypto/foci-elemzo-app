@@ -40,6 +40,13 @@ export interface StructuredAnalysis {
     sampleInfo: string;
     freshness: string;
   };
+  keyMetrics: {
+    xg: { home: number | null; away: number | null; xgaHome: number | null; xgaAway: number | null };
+    ppg: { home: number | null; away: number | null };
+    goalsPerMatch: { homeFor: number | null; awayFor: number | null; homeAgainst: number | null; awayAgainst: number | null };
+    availability: { homeMissing: number; awayMissing: number };
+    formations: { home: string | null; away: string | null };
+  };
 }
 
 function normalize1X2Probabilities(analysis: string) {
@@ -239,6 +246,32 @@ function coerceStructured(parsed: any, context?: MatchAnalysisContext): Structur
       sourceCoverage: Array.isArray(parsed?.dataQuality?.sourceCoverage) ? parsed.dataQuality.sourceCoverage : [],
       sampleInfo: parsed?.dataQuality?.sampleInfo || "nem megerositett",
       freshness: parsed?.dataQuality?.freshness || "nem megerositett",
+    },
+    keyMetrics: {
+      xg: {
+        home: context?.xgSummary?.home?.avgXG ?? null,
+        away: context?.xgSummary?.away?.avgXG ?? null,
+        xgaHome: context?.xgSummary?.home?.avgXGA ?? null,
+        xgaAway: context?.xgSummary?.away?.avgXGA ?? null,
+      },
+      ppg: {
+        home: context?.teamIntel?.home?.ppg ?? null,
+        away: context?.teamIntel?.away?.ppg ?? null,
+      },
+      goalsPerMatch: {
+        homeFor: context?.teamIntel?.home?.goalsForPerMatch ?? null,
+        awayFor: context?.teamIntel?.away?.goalsForPerMatch ?? null,
+        homeAgainst: context?.teamIntel?.home?.goalsAgainstPerMatch ?? null,
+        awayAgainst: context?.teamIntel?.away?.goalsAgainstPerMatch ?? null,
+      },
+      availability: {
+        homeMissing: context?.teamIntel?.home?.missingPlayers?.length || 0,
+        awayMissing: context?.teamIntel?.away?.missingPlayers?.length || 0,
+      },
+      formations: {
+        home: context?.teamIntel?.home?.likelyFormation || null,
+        away: context?.teamIntel?.away?.likelyFormation || null,
+      },
     },
   };
 
