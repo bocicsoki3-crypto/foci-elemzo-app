@@ -47,6 +47,31 @@ function buildValueBets(structuredAnalysis: StructuredAnalysis, monteCarlo: any 
     .map((item, idx) => ({ ...item, stakePct: Math.max(1, 4 - idx) }));
 }
 
+function MetricCard({ title, value, subtitle }: { title: string; value: string; subtitle?: string }) {
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white/95 p-4 shadow-[0_8px_24px_rgba(15,23,42,0.08)]">
+      <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">{title}</p>
+      <p className="mt-1 text-3xl font-black text-slate-900">{value}</p>
+      {subtitle ? <p className="mt-1 text-xs text-slate-500">{subtitle}</p> : null}
+    </div>
+  );
+}
+
+function BarRow({ label, value }: { label: string; value: number }) {
+  const width = Math.max(0, Math.min(100, value));
+  return (
+    <div className="space-y-1">
+      <div className="flex justify-between text-xs font-semibold text-slate-600">
+        <span>{label}</span>
+        <span>{value.toFixed(1)}%</span>
+      </div>
+      <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
+        <div className="h-full rounded-full bg-gradient-to-r from-blue-500 to-cyan-400" style={{ width: `${width}%` }} />
+      </div>
+    </div>
+  );
+}
+
 export default function AnalysisResult({
   analysis,
   structuredAnalysis,
@@ -76,35 +101,35 @@ export default function AnalysisResult({
 
   if (!selectedMatch) {
     return (
-      <div className="flex flex-col items-center justify-center p-12 bg-slate-900/70 rounded-2xl border-2 border-dashed border-slate-700 text-center">
-        <div className="w-16 h-16 bg-blue-50 text-blue-500 rounded-full flex items-center justify-center mb-4">
+      <div className="flex flex-col items-center justify-center p-12 bg-white rounded-3xl border border-slate-200 text-center shadow-[0_12px_40px_rgba(15,23,42,0.1)]">
+        <div className="w-16 h-16 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mb-4">
           <Bot className="w-8 h-8" />
         </div>
-        <h3 className="text-xl font-bold text-slate-100 mb-2">Válassz egy mérkőzést</h3>
-        <p className="text-slate-400 max-w-md">Válaszd ki a listából azt a mérkőzést, amit a Gemini AI-val szeretnél kielemeztetni.</p>
+        <h3 className="text-xl font-bold text-slate-900 mb-2">Válassz egy mérkőzést</h3>
+        <p className="text-slate-500 max-w-md">Válaszd ki a listából azt a mérkőzést, amit a Gemini AI-val szeretnél kielemeztetni.</p>
       </div>
     );
   }
 
-  const card = 'rounded-xl border border-slate-700 bg-slate-800/70 p-4';
+  const card = 'rounded-2xl border border-slate-200 bg-white/95 p-4 shadow-[0_8px_24px_rgba(15,23,42,0.08)]';
 
   return (
-    <div className="bg-slate-900/70 rounded-2xl border border-slate-700 shadow-sm overflow-hidden flex flex-col min-h-[500px]">
-      <div className="p-6 border-b border-slate-700 bg-gradient-to-r from-slate-800 to-indigo-900/40 flex items-center justify-between">
+    <div className="bg-gradient-to-b from-white to-slate-50 rounded-3xl border border-slate-200 shadow-[0_18px_50px_rgba(15,23,42,0.14)] overflow-hidden flex flex-col min-h-[500px]">
+      <div className="p-6 border-b border-slate-200 bg-gradient-to-r from-white via-slate-50 to-indigo-50 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 bg-blue-600 text-white rounded-xl flex items-center justify-center shadow-lg shadow-blue-200">
             <Sparkles className="w-6 h-6" />
           </div>
           <div>
-            <h2 className="text-lg font-bold text-slate-100 leading-tight">Gemini AI Elemzés</h2>
-            <p className="text-xs text-blue-300 font-medium">{selectedMatch.homeTeam.name} vs {selectedMatch.awayTeam.name}</p>
+            <h2 className="text-lg font-bold text-slate-900 leading-tight">Gemini AI Elemzés</h2>
+            <p className="text-xs text-blue-600 font-medium">{selectedMatch.homeTeam.name} vs {selectedMatch.awayTeam.name}</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={onOpenArchive} className="p-2 text-slate-300 hover:text-blue-300 hover:bg-slate-800 rounded-lg transition-all" title="Mentett elemzések"><History className="w-5 h-5" /></button>
-          <button onClick={exportAnalysis} disabled={!analysis} className="p-2 text-slate-300 hover:text-blue-300 hover:bg-slate-800 rounded-lg transition-all disabled:opacity-40" title="Elemzés export"><Download className="w-5 h-5" /></button>
-          <button onClick={onOpenModal} disabled={!analysis} className="p-2 text-slate-300 hover:text-blue-300 hover:bg-slate-800 rounded-lg transition-all disabled:opacity-40" title="Elemzés megnyitása"><Expand className="w-5 h-5" /></button>
-          <button onClick={onRefresh} disabled={loading} className="p-2 text-slate-300 hover:text-blue-300 hover:bg-slate-800 rounded-lg transition-all disabled:opacity-50" title="Elemzés frissítése"><RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} /></button>
+          <button onClick={onOpenArchive} className="p-2 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all" title="Mentett elemzések"><History className="w-5 h-5" /></button>
+          <button onClick={exportAnalysis} disabled={!analysis} className="p-2 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all disabled:opacity-40" title="Elemzés export"><Download className="w-5 h-5" /></button>
+          <button onClick={onOpenModal} disabled={!analysis} className="p-2 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all disabled:opacity-40" title="Elemzés megnyitása"><Expand className="w-5 h-5" /></button>
+          <button onClick={onRefresh} disabled={loading} className="p-2 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all disabled:opacity-50" title="Elemzés frissítése"><RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} /></button>
         </div>
       </div>
 
@@ -113,7 +138,7 @@ export default function AnalysisResult({
           {loading ? (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex flex-col items-center justify-center py-20 text-center">
               <Loader2 className="w-12 h-12 text-blue-500 animate-spin mb-4" />
-              <p className="text-slate-200 font-medium">Gemini éppen elemzi a mérkőzést...</p>
+              <p className="text-slate-700 font-medium">Gemini éppen elemzi a mérkőzést...</p>
             </motion.div>
           ) : structuredAnalysis ? (
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
@@ -123,12 +148,12 @@ export default function AnalysisResult({
                 const betAllowed = topProb >= 58 && structuredAnalysis.dataQuality.confidenceLabel !== 'alacsony';
                 return (
                   <div className={card}>
-                    <p className="text-xs uppercase tracking-wide text-slate-400">{betAllowed ? 'Bet Signal' : 'No Bet Signal'}</p>
-                    <p className="text-lg font-bold text-white">{betAllowed ? 'Statisztikai előny látszik.' : 'Nincs elég edge, passz.'}</p>
+                    <p className="text-xs uppercase tracking-wide text-slate-500">{betAllowed ? 'Bet Signal' : 'No Bet Signal'}</p>
+                    <p className="text-lg font-bold text-slate-900">{betAllowed ? 'Statisztikai előny látszik.' : 'Nincs elég edge, passz.'}</p>
                     {valueBets.length > 0 && (
                       <div className="mt-3 grid gap-2">
                         {valueBets.map((bet, idx) => (
-                          <div key={`${bet.market}-${bet.selection}`} className="rounded-lg border border-slate-600 bg-slate-900/60 px-3 py-2 text-xs text-slate-200">
+                          <div key={`${bet.market}-${bet.selection}`} className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700">
                             #{idx + 1} {bet.market} - {bet.selection} | {bet.prob.toFixed(1)}% | tét: {bet.stakePct}% bankroll
                           </div>
                         ))}
@@ -140,28 +165,32 @@ export default function AnalysisResult({
 
               {monteCarlo && (
                 <div className={card}>
-                  <p className="text-sm font-semibold text-white mb-2">Monte Carlo ({monteCarlo.iterations} futás)</p>
-                  <div className="grid grid-cols-2 md:grid-cols-5 gap-2 text-xs text-slate-200">
-                    <div>H: <span className="font-bold">{monteCarlo.homeWinPct}%</span></div>
-                    <div>D: <span className="font-bold">{monteCarlo.drawPct}%</span></div>
-                    <div>V: <span className="font-bold">{monteCarlo.awayWinPct}%</span></div>
-                    <div>BTTS: <span className="font-bold">{monteCarlo.bttsYesPct}%</span></div>
-                    <div>O2.5: <span className="font-bold">{monteCarlo.over25Pct}%</span></div>
+                  <p className="text-sm font-semibold text-slate-900 mb-3">Monte Carlo ({monteCarlo.iterations} futás)</p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <BarRow label="Hazai győzelem" value={Number(monteCarlo.homeWinPct) || 0} />
+                    <BarRow label="Döntetlen" value={Number(monteCarlo.drawPct) || 0} />
+                    <BarRow label="Vendég győzelem" value={Number(monteCarlo.awayWinPct) || 0} />
+                    <BarRow label="BTTS igen" value={Number(monteCarlo.bttsYesPct) || 0} />
+                    <BarRow label="Over 2.5" value={Number(monteCarlo.over25Pct) || 0} />
+                    <BarRow label="Over 3.5" value={Number(monteCarlo.over35Pct) || 0} />
                   </div>
+                  <p className="mt-3 text-xs text-slate-500">
+                    xG becslés: {monteCarlo.expectedHomeGoals} - {monteCarlo.expectedAwayGoals} | Legvalószínűbb: {monteCarlo.mostLikelyScore}
+                  </p>
                 </div>
               )}
 
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                <div className={card}><p className="text-[11px] text-slate-400">Hazai %</p><p className="text-2xl font-black text-white">{structuredAnalysis.probabilities.home}</p></div>
-                <div className={card}><p className="text-[11px] text-slate-400">Döntetlen %</p><p className="text-2xl font-black text-white">{structuredAnalysis.probabilities.draw}</p></div>
-                <div className={card}><p className="text-[11px] text-slate-400">Vendég %</p><p className="text-2xl font-black text-white">{structuredAnalysis.probabilities.away}</p></div>
-                <div className={card}><p className="text-[11px] text-slate-400">Bizalom</p><p className="text-2xl font-black text-white">{structuredAnalysis.correctScore.confidence}/10</p></div>
+                <MetricCard title="Hazai %" value={`${structuredAnalysis.probabilities.home}`} />
+                <MetricCard title="Döntetlen %" value={`${structuredAnalysis.probabilities.draw}`} />
+                <MetricCard title="Vendég %" value={`${structuredAnalysis.probabilities.away}`} />
+                <MetricCard title="Bizalom" value={`${structuredAnalysis.correctScore.confidence}/10`} />
               </div>
 
               {(hasNum(structuredAnalysis.keyMetrics.xg.home) || hasNum(structuredAnalysis.keyMetrics.xg.away) || hasNum(structuredAnalysis.keyMetrics.xg.xgaHome) || hasNum(structuredAnalysis.keyMetrics.xg.xgaAway)) && (
                 <div className={card}>
-                  <p className="text-sm font-semibold text-white mb-2">xG / xGA</p>
-                  <div className="grid grid-cols-3 gap-1 text-xs text-slate-300">
+                  <p className="text-sm font-semibold text-slate-900 mb-2">xG / xGA</p>
+                  <div className="grid grid-cols-3 gap-1 text-xs text-slate-600">
                     <p></p><p>Hazai</p><p>Vendég</p>
                     <p>xG</p><p>{val(structuredAnalysis.keyMetrics.xg.home, 2) ?? '-'}</p><p>{val(structuredAnalysis.keyMetrics.xg.away, 2) ?? '-'}</p>
                     <p>xGA</p><p>{val(structuredAnalysis.keyMetrics.xg.xgaHome, 2) ?? '-'}</p><p>{val(structuredAnalysis.keyMetrics.xg.xgaAway, 2) ?? '-'}</p>
@@ -171,8 +200,8 @@ export default function AnalysisResult({
 
               {(hasNum(structuredAnalysis.keyMetrics.ppg.home) || hasNum(structuredAnalysis.keyMetrics.ppg.away)) && (
                 <div className={card}>
-                  <p className="text-sm font-semibold text-white mb-2">PPG / Gólátlag</p>
-                  <div className="grid grid-cols-3 gap-1 text-xs text-slate-300">
+                  <p className="text-sm font-semibold text-slate-900 mb-2">PPG / Gólátlag</p>
+                  <div className="grid grid-cols-3 gap-1 text-xs text-slate-600">
                     <p></p><p>Hazai</p><p>Vendég</p>
                     <p>PPG</p><p>{val(structuredAnalysis.keyMetrics.ppg.home, 2) ?? '-'}</p><p>{val(structuredAnalysis.keyMetrics.ppg.away, 2) ?? '-'}</p>
                     <p>GF/meccs</p><p>{val(structuredAnalysis.keyMetrics.goalsPerMatch.homeFor, 2) ?? '-'}</p><p>{val(structuredAnalysis.keyMetrics.goalsPerMatch.awayFor, 2) ?? '-'}</p>
@@ -182,35 +211,35 @@ export default function AnalysisResult({
               )}
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                {!!structuredAnalysis.goalMarkets.btts.pick && <div className={card}><p className="text-[11px] text-slate-400">BTTS</p><p className="text-lg font-bold text-white">{structuredAnalysis.goalMarkets.btts.pick}</p></div>}
-                {!!structuredAnalysis.goalMarkets.overUnder25.pick && <div className={card}><p className="text-[11px] text-slate-400">Over/Under 2.5</p><p className="text-lg font-bold text-white">{structuredAnalysis.goalMarkets.overUnder25.pick}</p></div>}
-                {!!structuredAnalysis.goalMarkets.overUnder35.pick && <div className={card}><p className="text-[11px] text-slate-400">Over/Under 3.5</p><p className="text-lg font-bold text-white">{structuredAnalysis.goalMarkets.overUnder35.pick}</p></div>}
+                {!!structuredAnalysis.goalMarkets.btts.pick && <div className={card}><p className="text-[11px] text-slate-500">BTTS</p><p className="text-lg font-bold text-slate-900">{structuredAnalysis.goalMarkets.btts.pick}</p></div>}
+                {!!structuredAnalysis.goalMarkets.overUnder25.pick && <div className={card}><p className="text-[11px] text-slate-500">Over/Under 2.5</p><p className="text-lg font-bold text-slate-900">{structuredAnalysis.goalMarkets.overUnder25.pick}</p></div>}
+                {!!structuredAnalysis.goalMarkets.overUnder35.pick && <div className={card}><p className="text-[11px] text-slate-500">Over/Under 3.5</p><p className="text-lg font-bold text-slate-900">{structuredAnalysis.goalMarkets.overUnder35.pick}</p></div>}
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-                {!!structuredAnalysis.goalMarkets.firstHalf.pick && <div className={card}><p className="text-[11px] text-slate-400">Félidő tipp</p><p className="text-lg font-bold text-white">{structuredAnalysis.goalMarkets.firstHalf.pick}</p></div>}
-                {!!structuredAnalysis.goalMarkets.corners.pick && <div className={card}><p className="text-[11px] text-slate-400">Szöglet tipp</p><p className="text-lg font-bold text-white">{structuredAnalysis.goalMarkets.corners.pick}</p></div>}
-                {!!structuredAnalysis.goalMarkets.cards.pick && <div className={card}><p className="text-[11px] text-slate-400">Lap tipp</p><p className="text-lg font-bold text-white">{structuredAnalysis.goalMarkets.cards.pick}</p></div>}
-                {!!structuredAnalysis.correctScore.prediction && <div className={card}><p className="text-[11px] text-slate-400">Pontos eredmény</p><p className="text-lg font-bold text-white">{structuredAnalysis.correctScore.prediction}</p></div>}
+                {!!structuredAnalysis.goalMarkets.firstHalf.pick && <div className={card}><p className="text-[11px] text-slate-500">Félidő tipp</p><p className="text-lg font-bold text-slate-900">{structuredAnalysis.goalMarkets.firstHalf.pick}</p></div>}
+                {!!structuredAnalysis.goalMarkets.corners.pick && <div className={card}><p className="text-[11px] text-slate-500">Szöglet tipp</p><p className="text-lg font-bold text-slate-900">{structuredAnalysis.goalMarkets.corners.pick}</p></div>}
+                {!!structuredAnalysis.goalMarkets.cards.pick && <div className={card}><p className="text-[11px] text-slate-500">Lap tipp</p><p className="text-lg font-bold text-slate-900">{structuredAnalysis.goalMarkets.cards.pick}</p></div>}
+                {!!structuredAnalysis.correctScore.prediction && <div className={card}><p className="text-[11px] text-slate-500">Pontos eredmény</p><p className="text-lg font-bold text-slate-900">{structuredAnalysis.correctScore.prediction}</p></div>}
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                {!!structuredAnalysis.tipsByRisk.konzervativ.tip && <div className={card}><p className="text-[11px] text-slate-400">Konzervatív tipp</p><p className="text-base font-semibold text-white">{structuredAnalysis.tipsByRisk.konzervativ.tip}</p></div>}
-                {!!structuredAnalysis.tipsByRisk.kiegyensulyozott.tip && <div className={card}><p className="text-[11px] text-slate-400">Kiegyensúlyozott tipp</p><p className="text-base font-semibold text-white">{structuredAnalysis.tipsByRisk.kiegyensulyozott.tip}</p></div>}
-                {!!structuredAnalysis.tipsByRisk.agressziv.tip && <div className={card}><p className="text-[11px] text-slate-400">Agresszív tipp</p><p className="text-base font-semibold text-white">{structuredAnalysis.tipsByRisk.agressziv.tip}</p></div>}
+                {!!structuredAnalysis.tipsByRisk.konzervativ.tip && <div className={card}><p className="text-[11px] text-slate-500">Konzervatív tipp</p><p className="text-base font-semibold text-slate-900">{structuredAnalysis.tipsByRisk.konzervativ.tip}</p></div>}
+                {!!structuredAnalysis.tipsByRisk.kiegyensulyozott.tip && <div className={card}><p className="text-[11px] text-slate-500">Kiegyensúlyozott tipp</p><p className="text-base font-semibold text-slate-900">{structuredAnalysis.tipsByRisk.kiegyensulyozott.tip}</p></div>}
+                {!!structuredAnalysis.tipsByRisk.agressziv.tip && <div className={card}><p className="text-[11px] text-slate-500">Agresszív tipp</p><p className="text-base font-semibold text-slate-900">{structuredAnalysis.tipsByRisk.agressziv.tip}</p></div>}
               </div>
 
               {(structuredAnalysis.keyMetrics.availability.homeMissing > 0 || structuredAnalysis.keyMetrics.availability.awayMissing > 0 || structuredAnalysis.keyMetrics.formations.home || structuredAnalysis.keyMetrics.formations.away) && (
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                  {structuredAnalysis.keyMetrics.availability.homeMissing > 0 && <div className={card}><p className="text-[11px] text-slate-400">Hiányzók (H)</p><p className="text-xl font-black text-white">{structuredAnalysis.keyMetrics.availability.homeMissing}</p></div>}
-                  {structuredAnalysis.keyMetrics.availability.awayMissing > 0 && <div className={card}><p className="text-[11px] text-slate-400">Hiányzók (V)</p><p className="text-xl font-black text-white">{structuredAnalysis.keyMetrics.availability.awayMissing}</p></div>}
-                  {!!structuredAnalysis.keyMetrics.formations.home && <div className={card}><p className="text-[11px] text-slate-400">Felállás (H)</p><p className="text-base font-semibold text-white">{structuredAnalysis.keyMetrics.formations.home}</p></div>}
-                  {!!structuredAnalysis.keyMetrics.formations.away && <div className={card}><p className="text-[11px] text-slate-400">Felállás (V)</p><p className="text-base font-semibold text-white">{structuredAnalysis.keyMetrics.formations.away}</p></div>}
+                  {structuredAnalysis.keyMetrics.availability.homeMissing > 0 && <div className={card}><p className="text-[11px] text-slate-500">Hiányzók (H)</p><p className="text-xl font-black text-slate-900">{structuredAnalysis.keyMetrics.availability.homeMissing}</p></div>}
+                  {structuredAnalysis.keyMetrics.availability.awayMissing > 0 && <div className={card}><p className="text-[11px] text-slate-500">Hiányzók (V)</p><p className="text-xl font-black text-slate-900">{structuredAnalysis.keyMetrics.availability.awayMissing}</p></div>}
+                  {!!structuredAnalysis.keyMetrics.formations.home && <div className={card}><p className="text-[11px] text-slate-500">Felállás (H)</p><p className="text-base font-semibold text-slate-900">{structuredAnalysis.keyMetrics.formations.home}</p></div>}
+                  {!!structuredAnalysis.keyMetrics.formations.away && <div className={card}><p className="text-[11px] text-slate-500">Felállás (V)</p><p className="text-base font-semibold text-slate-900">{structuredAnalysis.keyMetrics.formations.away}</p></div>}
                 </div>
               )}
 
               <div className={card}>
-                <p className="text-xs font-semibold text-slate-300 mb-2">Adatforrás állapot</p>
+                <p className="text-xs font-semibold text-slate-600 mb-2">Adatforrás állapot</p>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
                   {Object.entries({
                     prediction: structuredAnalysis.dataQuality.sourceCoverage.includes('prediction'),
@@ -221,7 +250,7 @@ export default function AnalysisResult({
                     teamStats: structuredAnalysis.dataQuality.sourceCoverage.includes('teamStats'),
                     news: structuredAnalysis.dataQuality.sourceCoverage.includes('news'),
                   }).map(([k, ok]) => (
-                    <div key={k} className={`rounded-md border px-2 py-1 ${ok ? 'border-emerald-700 text-emerald-300' : 'border-slate-600 text-slate-500'}`}>
+                    <div key={k} className={`rounded-md border px-2 py-1 ${ok ? 'border-emerald-300 bg-emerald-50 text-emerald-700' : 'border-slate-200 bg-slate-50 text-slate-400'}`}>
                       {k}: {ok ? 'ok' : 'nincs'}
                     </div>
                   ))}
@@ -229,12 +258,12 @@ export default function AnalysisResult({
               </div>
             </motion.div>
           ) : (
-            <div className="text-center py-20 text-slate-400 italic">Nincs elérhető elemzés. Kattints a frissítésre!</div>
+            <div className="text-center py-20 text-slate-500 italic">Nincs elérhető elemzés. Kattints a frissítésre!</div>
           )}
         </AnimatePresence>
       </div>
 
-      <div className="p-4 bg-slate-900 text-[10px] text-slate-500 text-center">
+      <div className="p-4 bg-white text-[10px] text-slate-400 text-center border-t border-slate-200">
         Az elemzés mesterséges intelligencia segítségével készült. Kérjük, felelősségteljesen fogadj!
       </div>
     </div>
