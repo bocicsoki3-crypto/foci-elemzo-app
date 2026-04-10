@@ -39,6 +39,41 @@ function v(value: number | null | undefined, suffix = '') {
   return `${value}${suffix}`;
 }
 
+function buildValueBets(structuredAnalysis: StructuredAnalysis, monteCarlo: any | null) {
+  const values: Array<{ market: string; selection: string; prob: number }> = [];
+  if (monteCarlo) {
+    values.push(
+      { market: '1X2', selection: 'Hazai', prob: Number(monteCarlo.homeWinPct) || 0 },
+      { market: '1X2', selection: 'Döntetlen', prob: Number(monteCarlo.drawPct) || 0 },
+      { market: '1X2', selection: 'Vendég', prob: Number(monteCarlo.awayWinPct) || 0 },
+      { market: 'BTTS', selection: 'Igen', prob: Number(monteCarlo.bttsYesPct) || 0 },
+      { market: 'BTTS', selection: 'Nem', prob: 100 - (Number(monteCarlo.bttsYesPct) || 0) },
+      { market: 'Over/Under 2.5', selection: 'Over 2.5', prob: Number(monteCarlo.over25Pct) || 0 },
+      { market: 'Over/Under 2.5', selection: 'Under 2.5', prob: 100 - (Number(monteCarlo.over25Pct) || 0) },
+      { market: 'Over/Under 3.5', selection: 'Over 3.5', prob: Number(monteCarlo.over35Pct) || 0 },
+      { market: 'Over/Under 3.5', selection: 'Under 3.5', prob: 100 - (Number(monteCarlo.over35Pct) || 0) },
+    );
+  }
+
+  const unique = new Map<string, { market: string; selection: string; prob: number }>();
+  for (const item of values) {
+    const key = `${item.market}-${item.selection}`;
+    if (!unique.has(key)) unique.set(key, item);
+  }
+
+  const sorted = [...unique.values()]
+    .filter((item) => item.prob >= 52)
+    .sort((a, b) => b.prob - a.prob)
+    .slice(0, 3);
+
+  const confidence = structuredAnalysis.correctScore.confidence;
+  const baseStake = confidence >= 8 ? 4 : confidence >= 6 ? 3 : 2;
+  return sorted.map((item, idx) => ({
+    ...item,
+    stakePct: Math.max(1, baseStake - idx),
+  }));
+}
+
 export default function AnalysisResult({
   analysis,
   structuredAnalysis,
@@ -146,6 +181,49 @@ export default function AnalysisResult({
             >
               {structuredAnalysis && (
                 <div className="space-y-3">
+                  {(() => {
+                    const valueBets = buildValueBets(structuredAnalysis, monteCarlo);
+                    const topProb = valueBets[0]?.prob || 0;
+                    const dataConfidence = structuredAnalysis.dataQuality.confidenceLabel;
+                    const betAllowed = topProb >= 58 && dataConfidence !== 'alacsony';
+                    return (
+                      <div className={`rounded-xl border p-3 ${
+                        betAllowed
+                          ? 'border-emerald-300 bg-emerald-50'
+                          : 'border-amber-300 bg-amber-50'
+                      }`}>
+                        <p className={`text-xs font-semibold ${betAllowed ? 'text-emerald-700' : 'text-amber-700'}`}>
+                          {betAllowed ? 'BET jelzés' : 'NO BET jelzés'}
+                        </p>
+                        <p className={`text-sm font-bold ${betAllowed ? 'text-emerald-800' : 'text-amber-800'}`}>
+                          {betAllowed
+                            ? 'Van statisztikai előny, mehet kis tét.'
+                            : 'Nincs elég edge, inkább kihagyós meccs.'}
+                        </p>
+                      </div>
+                    );
+                  })()}
+
+                  {(() => {
+                    const valueBets = buildValueBets(structuredAnalysis, monteCarlo);
+                    return (
+                      <div className="rounded-xl border border-cyan-300 bg-cyan-50 p-3">
+                        <p className="text-xs font-semibold text-cyan-700 mb-2">Top 3 Value Bet</p>
+                        {valueBets.length === 0 ? (
+                          <p className="text-xs text-cyan-800">Nincs elég edge alapú tipp, jelenleg no-bet zóna.</p>
+                        ) : (
+                          <div className="space-y-2">
+                            {valueBets.map((bet, idx) => (
+                              <div key={`${bet.market}-${bet.selection}`} className="rounded-md bg-white/70 border border-cyan-200 px-2 py-1 text-xs text-cyan-900">
+                                #{idx + 1} {bet.market} - {bet.selection} | esély: <span className="font-bold">{bet.prob.toFixed(1)}%</span> | javasolt tét: <span className="font-bold">{bet.stakePct}% bankroll</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
+
                   {monteCarlo && (
                     <div className="rounded-xl border border-fuchsia-300 bg-fuchsia-50 p-3">
                       <p className="text-xs font-semibold text-fuchsia-700 mb-2">
