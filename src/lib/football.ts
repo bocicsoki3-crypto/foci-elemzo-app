@@ -14,6 +14,14 @@ const footballApi = axios.create({
   },
 });
 
+const UNDERSTAT_LEAGUE_MAP: Record<string, string> = {
+  'premier league': 'EPL',
+  'la liga': 'La_liga',
+  'bundesliga': 'Bundesliga',
+  'serie a': 'Serie_A',
+  'ligue 1': 'Ligue_1',
+};
+
 export interface MatchAnalysisContext {
   prediction: any | null;
   probabilities: { home: number; draw: number; away: number };
@@ -144,6 +152,88 @@ function parseStatNumber(value: any) {
   if (value === null || value === undefined || value === '') return null;
   const parsed = Number.parseFloat(String(value).replace('%', '').trim());
   return Number.isFinite(parsed) ? parsed : null;
+}
+
+function normalizeTeamName(value: string) {
+  return value
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9 ]/g, ' ')
+    .replace(/\b(fc|cf|ac|as|ssc|sc|afc|deportivo|club)\b/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function getUnderstatLeagueKey(competitionName: string) {
+  const key = (competitionName || '').toLowerCase().trim();
+  return UNDERSTAT_LEAGUE_MAP[key] || null;
+}
+
+async function getUnderstatTeamXg(
+  competitionName: string,
+  season: number,
+  homeTeamName: string,
+  awayTeamName: string
+) {
+  const leagueKey = getUnderstatLeagueKey(competitionName);
+  if (!leagueKey) return null;
+
+  try {
+    const url = `https://understat.com/league/${leagueKey}/${season}`;
+    const response = await fetch(url, { method: 'GET' });
+    if (!response.ok) return null;
+    const html = await response.text();
+
+    const match = html.match(/teamsData\s*=\s*JSON\.parse\('([\s\S]*?)'\)/);
+    if (!match?.[1]) return null;
+
+    const decodedJson = match[1]
+      .replace(/\\'/g, "'")
+      .replace(/\\\\/g, '\\')
+      .replace(/\\"/g, '"');
+    const teamsObj = JSON.parse(decodedJson);
+    const teams = Object.values(teamsObj) as any[];
+    if (!Array.isArray(teams) || teams.length === 0) return null;
+
+    const homeNorm = normalizeTeamName(homeTeamName);
+    const awayNorm = normalizeTeamName(awayTeamName);
+    const findTeam = (target: string) =>
+      teams.find((team) => {
+        const title = normalizeTeamName(String(team?.title || ''));
+        return title === target || title.includes(target) || target.includes(title);
+      });
+
+    const home = findTeam(homeNorm);
+    const away = findTeam(awayNorm);
+    if (!home || !away) return null;
+
+    const homeMatches = Number.parseFloat(String(home?.history?.length || 0));
+    const awayMatches = Number.parseFloat(String(away?.history?.length || 0));
+
+    const hxg = parseStatNumber(home?.xG);
+    const hxga = parseStatNumber(home?.xGA);
+    const axg = parseStatNumber(away?.xG);
+    const axga = parseStatNumber(away?.xGA);
+    if (hxg === null || hxga === null || axg === null || axga === null) return null;
+
+    return {
+      home: {
+        avgXG: homeMatches > 0 ? Number((hxg / homeMatches).toFixed(2)) : null,
+        avgXGA: homeMatches > 0 ? Number((hxga / homeMatches).toFixed(2)) : null,
+        samples: homeMatches > 0 ? Math.round(homeMatches) : 0,
+      },
+      away: {
+        avgXG: awayMatches > 0 ? Number((axg / awayMatches).toFixed(2)) : null,
+        avgXGA: awayMatches > 0 ? Number((axga / awayMatches).toFixed(2)) : null,
+        samples: awayMatches > 0 ? Math.round(awayMatches) : 0,
+      },
+      source: 'understat',
+    };
+  } catch (error) {
+    console.error('Understat xG fallback failed:', error);
+    return null;
+  }
 }
 
 function toSafeNumber(value: any) {
@@ -500,6 +590,20 @@ export async function getMatchAnalysisContext(matchDetails: any): Promise<MatchA
     getTeamXgSummary(homeTeamId, homeRecent),
     getTeamXgSummary(awayTeamId, awayRecent),
   ]);
+  const understatXg = await getUnderstatTeamXg(
+    matchDetails?.competition?.name || '',
+    Number(season),
+    matchDetails?.homeTeam?.name || '',
+    matchDetails?.awayTeam?.name || ''
+  );
+  const finalHomeXg =
+    (homeXg.samples || 0) > 0
+      ? homeXg
+      : understatXg?.home || { avgXG: null, avgXGA: null, samples: 0 };
+  const finalAwayXg =
+    (awayXg.samples || 0) > 0
+      ? awayXg
+      : understatXg?.away || { avgXG: null, avgXGA: null, samples: 0 };
   const [homeDiscipline, awayDiscipline] = await Promise.all([
     getTeamRecentDisciplineAndCorners(homeTeamId, homeRecent),
     getTeamRecentDisciplineAndCorners(awayTeamId, awayRecent),
@@ -511,7 +615,7 @@ export async function getMatchAnalysisContext(matchDetails: any): Promise<MatchA
     awayTeamId,
     homeRecent,
     awayRecent,
-    { home: homeXg, away: awayXg }
+    { home: finalHomeXg, away: finalAwayXg }
   );
   const predictionProbabilities = getPredictionProbabilities(predictionFirst);
   const probabilities = predictionProbabilities
@@ -522,7 +626,7 @@ export async function getMatchAnalysisContext(matchDetails: any): Promise<MatchA
   const hasLineups = Array.isArray(lineups) && lineups.length > 0;
   const hasH2H = Array.isArray(h2h) && h2h.length > 0;
   const hasInjuries = (homeInjuries?.length || 0) + (awayInjuries?.length || 0) > 0;
-  const hasXg = (homeXg.samples || 0) > 0 || (awayXg.samples || 0) > 0;
+  const hasXg = (finalHomeXg.samples || 0) > 0 || (finalAwayXg.samples || 0) > 0;
 
   const homeIntel = buildTeamIntel(homeTeamStats, homeInjuries, lineups, homeTeamId);
   const awayIntel = buildTeamIntel(awayTeamStats, awayInjuries, lineups, awayTeamId);
@@ -544,7 +648,7 @@ export async function getMatchAnalysisContext(matchDetails: any): Promise<MatchA
       home: homeIntel,
       away: awayIntel,
     },
-    xgSummary: { home: homeXg, away: awayXg },
+    xgSummary: { home: finalHomeXg, away: finalAwayXg },
     dataAvailability: {
       prediction: Boolean(predictionProbabilities),
       h2h: hasH2H,
