@@ -1,11 +1,13 @@
 'use client';
 
 import React from 'react';
-import { Bot, Sparkles, Loader2, RefreshCw, Expand, History } from 'lucide-react';
+import { Bot, Sparkles, Loader2, RefreshCw, Expand, History, Download } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import type { StructuredAnalysis } from '@/lib/gemini';
 
 interface AnalysisResultProps {
   analysis: string | null;
+  structuredAnalysis: StructuredAnalysis | null;
   loading: boolean;
   onRefresh: () => void;
   selectedMatch: any | null;
@@ -33,12 +35,30 @@ function parseSections(analysis: string) {
 
 export default function AnalysisResult({
   analysis,
+  structuredAnalysis,
   loading,
   onRefresh,
   selectedMatch,
   onOpenModal,
   onOpenArchive,
 }: AnalysisResultProps) {
+  const exportAnalysis = () => {
+    if (!analysis) return;
+    const payload = {
+      match: selectedMatch ? `${selectedMatch.homeTeam.name} vs ${selectedMatch.awayTeam.name}` : 'unknown',
+      generatedAt: new Date().toISOString(),
+      structuredAnalysis,
+      markdown: analysis,
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `analysis-${selectedMatch?.id || 'match'}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   if (!selectedMatch) {
     return (
       <div className="flex flex-col items-center justify-center p-12 bg-white rounded-2xl border-2 border-dashed border-gray-100 text-center">
@@ -70,6 +90,14 @@ export default function AnalysisResult({
             title="Mentett elemzések"
           >
             <History className="w-5 h-5" />
+          </button>
+          <button
+            onClick={exportAnalysis}
+            disabled={!analysis}
+            className="p-2 text-gray-500 hover:text-blue-600 hover:bg-white rounded-lg transition-all disabled:opacity-40"
+            title="Elemzés export"
+          >
+            <Download className="w-5 h-5" />
           </button>
           <button
             onClick={onOpenModal}
@@ -109,6 +137,26 @@ export default function AnalysisResult({
               animate={{ opacity: 1, y: 0 }}
               className="space-y-4"
             >
+              {structuredAnalysis && (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3">
+                    <p className="text-xs font-semibold text-emerald-700">1X2</p>
+                    <p className="text-sm text-emerald-800">
+                      H {structuredAnalysis.probabilities.home}% - D {structuredAnalysis.probabilities.draw}% - V {structuredAnalysis.probabilities.away}%
+                    </p>
+                  </div>
+                  <div className="rounded-xl border border-violet-200 bg-violet-50 p-3">
+                    <p className="text-xs font-semibold text-violet-700">Adatbizalom</p>
+                    <p className="text-sm text-violet-800">{structuredAnalysis.dataQuality.confidenceLabel}</p>
+                    <p className="text-xs text-violet-700">{structuredAnalysis.dataQuality.sampleInfo}</p>
+                  </div>
+                  <div className="rounded-xl border border-sky-200 bg-sky-50 p-3">
+                    <p className="text-xs font-semibold text-sky-700">Pontos tipp</p>
+                    <p className="text-sm text-sky-800">{structuredAnalysis.correctScore.prediction}</p>
+                    <p className="text-xs text-sky-700">Bizalom: {structuredAnalysis.correctScore.confidence}/10</p>
+                  </div>
+                </div>
+              )}
               {parseSections(analysis).map((section, sectionIndex) => (
                 <div
                   key={`${section.title}-${sectionIndex}`}

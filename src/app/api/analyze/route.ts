@@ -4,10 +4,12 @@ import { getMatchAnalysisContext } from '@/lib/football';
 
 export async function POST(request: Request) {
   try {
-    const matchDetails = await request.json();
+    const body = await request.json();
+    const matchDetails = body?.matchDetails || body;
+    const options = body?.options || {};
     const analysisContext = await getMatchAnalysisContext(matchDetails);
-    const analysis = await analyzeMatch(matchDetails, analysisContext);
-    return NextResponse.json({ analysis });
+    const result = await analyzeMatch(matchDetails, analysisContext, options);
+    return NextResponse.json(result);
   } catch (error) {
     console.error('API Error analyzing match:', error);
     const message = error instanceof Error ? error.message : 'Failed to analyze match';

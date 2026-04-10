@@ -6,6 +6,7 @@ import { RefreshCw, Trophy, Info, ShieldCheck, ChevronDown, ChevronUp, ListFilte
 import { motion, AnimatePresence } from 'framer-motion';
 import MatchCard from '@/components/MatchCard';
 import AnalysisResult from '@/components/AnalysisResult';
+import type { StructuredAnalysis, RiskProfile } from '@/lib/gemini';
 
 interface SavedAnalysis {
   id: string;
@@ -15,6 +16,8 @@ interface SavedAnalysis {
   awayTeam: string;
   matchId: number | string;
   analysis: string;
+  structuredAnalysis?: StructuredAnalysis | null;
+  riskProfile?: RiskProfile;
 }
 
 const SAVED_ANALYSES_KEY = 'foci_saved_analyses_v1';
@@ -25,7 +28,10 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [selectedMatch, setSelectedMatch] = useState<any | null>(null);
   const [analysis, setAnalysis] = useState<string | null>(null);
+  const [structuredAnalysis, setStructuredAnalysis] = useState<StructuredAnalysis | null>(null);
   const [analysisLoading, setAnalysisLoading] = useState(false);
+  const [riskProfile, setRiskProfile] = useState<RiskProfile>('kiegyensulyozott');
+  const [bankroll, setBankroll] = useState<number>(100);
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedLeagues, setExpandedLeagues] = useState<Set<string>>(new Set());
   const [savedAnalyses, setSavedAnalyses] = useState<SavedAnalysis[]>([]);
@@ -80,11 +86,16 @@ export default function Home() {
   const handleSelectMatch = async (match: any) => {
     setSelectedMatch(match);
     setAnalysis(null);
+    setStructuredAnalysis(null);
     setAnalysisLoading(true);
     
     try {
-      const response = await axios.post('/api/analyze', match);
+      const response = await axios.post('/api/analyze', {
+        matchDetails: match,
+        options: { riskProfile, bankroll },
+      });
       setAnalysis(response.data.analysis);
+      setStructuredAnalysis(response.data.structuredAnalysis || null);
     } catch (err) {
       console.error('Error analyzing match:', err);
       if (axios.isAxiosError(err)) {
@@ -140,13 +151,15 @@ export default function Home() {
       awayTeam: selectedMatch?.awayTeam?.name || 'Vendég',
       matchId: selectedMatch?.id || 'unknown',
       analysis,
+      structuredAnalysis,
+      riskProfile,
     };
 
     setSavedAnalyses((prev) => {
       const withoutSameMatch = prev.filter((item) => item.matchId !== newEntry.matchId);
       return [newEntry, ...withoutSameMatch].slice(0, 40);
     });
-  }, [analysis, selectedMatch]);
+  }, [analysis, structuredAnalysis, selectedMatch, riskProfile]);
 
   const openLiveAnalysisModal = () => {
     if (!analysis || !selectedMatch || !isSavableAnalysis(analysis)) return;
@@ -158,6 +171,8 @@ export default function Home() {
       awayTeam: selectedMatch?.awayTeam?.name || 'Vendég',
       matchId: selectedMatch?.id || 'unknown',
       analysis,
+      structuredAnalysis,
+      riskProfile,
     });
     setIsAnalysisModalOpen(true);
   };
@@ -211,6 +226,27 @@ export default function Home() {
             <h1 className="text-xl font-black tracking-tight text-slate-900 sm:text-2xl uppercase">Foci<span className="text-blue-600">Elemző</span> AI</h1>
           </div>
           <div className="flex items-center gap-4">
+            <div className="hidden md:flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-2 py-1">
+              <select
+                value={riskProfile}
+                onChange={(e) => setRiskProfile(e.target.value as RiskProfile)}
+                className="bg-transparent text-xs font-semibold text-slate-600 outline-none"
+                title="Kockázati profil"
+              >
+                <option value="konzervativ">Konzervatív</option>
+                <option value="kiegyensulyozott">Kiegyensúlyozott</option>
+                <option value="agressziv">Agresszív</option>
+              </select>
+              <input
+                type="number"
+                min={10}
+                step={10}
+                value={bankroll}
+                onChange={(e) => setBankroll(Math.max(10, Number(e.target.value) || 100))}
+                className="w-20 rounded-md border border-slate-200 px-2 py-1 text-xs font-semibold text-slate-600"
+                title="Bankroll"
+              />
+            </div>
             <button
               onClick={fetchMatches}
               disabled={loading}
@@ -328,6 +364,7 @@ export default function Home() {
             <div className="sticky top-24">
               <AnalysisResult
                 analysis={analysis}
+                structuredAnalysis={structuredAnalysis}
                 loading={analysisLoading}
                 onRefresh={handleRefreshAnalysis}
                 selectedMatch={selectedMatch}
