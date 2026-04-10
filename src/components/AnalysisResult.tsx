@@ -202,6 +202,29 @@ export default function AnalysisResult({
                       <p className="text-sm font-bold text-cyan-800">{structuredAnalysis.keyMetrics.formations.away || '-'}</p>
                     </div>
                   </div>
+
+                  <div className="rounded-xl border border-slate-700 bg-slate-800/70 p-3">
+                    <p className="text-xs font-semibold text-slate-300 mb-2">Adatforrás állapot</p>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-xs">
+                      {Object.entries({
+                        prediction: structuredAnalysis.dataQuality.sourceCoverage.includes('prediction'),
+                        h2h: structuredAnalysis.dataQuality.sourceCoverage.includes('h2h'),
+                        injuries: structuredAnalysis.dataQuality.sourceCoverage.includes('injuries'),
+                        lineups: structuredAnalysis.dataQuality.sourceCoverage.includes('lineups'),
+                        xg: structuredAnalysis.dataQuality.sourceCoverage.some((v) => v.toLowerCase().includes('xg')),
+                        teamStats: structuredAnalysis.dataQuality.sourceCoverage.includes('recentForm'),
+                      }).map(([key, ok]) => (
+                        <div
+                          key={key}
+                          className={`rounded-md px-2 py-1 border ${
+                            ok ? 'border-emerald-700 bg-emerald-950/40 text-emerald-300' : 'border-rose-700 bg-rose-950/30 text-rose-300'
+                          }`}
+                        >
+                          {key}: {ok ? 'ok' : 'nincs'}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               )}
               {parseSections(analysis).slice(0, 2).map((section, sectionIndex) => (

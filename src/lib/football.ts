@@ -45,6 +45,14 @@ export interface MatchAnalysisContext {
     home: { avgXG: number | null; avgXGA: number | null; samples: number };
     away: { avgXG: number | null; avgXGA: number | null; samples: number };
   };
+  dataAvailability: {
+    prediction: boolean;
+    h2h: boolean;
+    lineups: boolean;
+    injuries: boolean;
+    xg: boolean;
+    teamStats: boolean;
+  };
 }
 
 async function safeApiGet(path: string, params: Record<string, any>) {
@@ -116,6 +124,20 @@ function normalizeTo100(home: number, draw: number, away: number) {
   let a = Math.round(away * scale);
   a += 100 - (h + d + a);
   return { home: h, draw: d, away: a };
+}
+
+function blendProbabilities(
+  primary: { home: number; draw: number; away: number },
+  secondary: { home: number; draw: number; away: number },
+  primaryWeight = 0.65
+) {
+  const p = Math.max(0, Math.min(1, primaryWeight));
+  const s = 1 - p;
+  return normalizeTo100(
+    primary.home * p + secondary.home * s,
+    primary.draw * p + secondary.draw * s,
+    primary.away * p + secondary.away * s
+  );
 }
 
 function getPredictionProbabilities(prediction: any) {
@@ -323,6 +345,14 @@ export async function getMatchAnalysisContext(matchDetails: any): Promise<MatchA
       home: { avgXG: null, avgXGA: null, samples: 0 },
       away: { avgXG: null, avgXGA: null, samples: 0 },
     },
+    dataAvailability: {
+      prediction: false,
+      h2h: false,
+      lineups: false,
+      injuries: false,
+      xg: false,
+      teamStats: false,
+    },
   };
 
   if (!fixtureId || !homeTeamId || !awayTeamId) return defaultContext;
@@ -347,9 +377,23 @@ export async function getMatchAnalysisContext(matchDetails: any): Promise<MatchA
   ]);
 
   const predictionFirst = prediction[0] || null;
-  const probabilities =
-    getPredictionProbabilities(predictionFirst) ||
-    deriveFallbackProbabilities(homeTeamId, awayTeamId, homeRecent, awayRecent, { home: homeXg, away: awayXg });
+  const fallbackProbabilities = deriveFallbackProbabilities(
+    homeTeamId,
+    awayTeamId,
+    homeRecent,
+    awayRecent,
+    { home: homeXg, away: awayXg }
+  );
+  const predictionProbabilities = getPredictionProbabilities(predictionFirst);
+  const probabilities = predictionProbabilities
+    ? blendProbabilities(predictionProbabilities, fallbackProbabilities, 0.62)
+    : fallbackProbabilities;
+
+  const hasTeamStats = Boolean(homeTeamStats && awayTeamStats);
+  const hasLineups = Array.isArray(lineups) && lineups.length > 0;
+  const hasH2H = Array.isArray(h2h) && h2h.length > 0;
+  const hasInjuries = (homeInjuries?.length || 0) + (awayInjuries?.length || 0) > 0;
+  const hasXg = (homeXg.samples || 0) > 0 || (awayXg.samples || 0) > 0;
 
   return {
     prediction: predictionFirst,
@@ -363,6 +407,14 @@ export async function getMatchAnalysisContext(matchDetails: any): Promise<MatchA
       away: buildTeamIntel(awayTeamStats, awayInjuries, lineups, awayTeamId),
     },
     xgSummary: { home: homeXg, away: awayXg },
+    dataAvailability: {
+      prediction: Boolean(predictionProbabilities),
+      h2h: hasH2H,
+      lineups: hasLineups,
+      injuries: hasInjuries,
+      xg: hasXg,
+      teamStats: hasTeamStats,
+    },
   };
 }
 

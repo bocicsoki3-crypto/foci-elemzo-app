@@ -198,6 +198,15 @@ function clampConfidence(value: number) {
 
 function coerceStructured(parsed: any, context?: MatchAnalysisContext): StructuredAnalysis {
   const fromContext = getContextProbabilities(context) || { home: 33, draw: 34, away: 33 };
+  const computedCoverage = [
+    context?.dataAvailability?.prediction ? 'prediction' : null,
+    context?.dataAvailability?.h2h ? 'h2h' : null,
+    context?.dataAvailability?.injuries ? 'injuries' : null,
+    context?.dataAvailability?.lineups ? 'lineups' : null,
+    context?.dataAvailability?.xg ? 'xG/xGA' : null,
+    context?.dataAvailability?.teamStats ? 'teamStats' : null,
+    'recentForm',
+  ].filter(Boolean) as string[];
   const base: StructuredAnalysis = {
     matchSummary: Array.isArray(parsed?.matchSummary) ? parsed.matchSummary.slice(0, 6) : [],
     probabilities: {
@@ -243,7 +252,10 @@ function coerceStructured(parsed: any, context?: MatchAnalysisContext): Structur
       confidenceLabel: parsed?.dataQuality?.confidenceLabel === "magas" || parsed?.dataQuality?.confidenceLabel === "alacsony"
         ? parsed.dataQuality.confidenceLabel
         : "kozepes",
-      sourceCoverage: Array.isArray(parsed?.dataQuality?.sourceCoverage) ? parsed.dataQuality.sourceCoverage : [],
+      sourceCoverage:
+        Array.isArray(parsed?.dataQuality?.sourceCoverage) && parsed.dataQuality.sourceCoverage.length > 0
+          ? parsed.dataQuality.sourceCoverage
+          : computedCoverage,
       sampleInfo: parsed?.dataQuality?.sampleInfo || "nem megerositett",
       freshness: parsed?.dataQuality?.freshness || "nem megerositett",
     },
