@@ -86,6 +86,26 @@ export interface MatchAnalysisContext {
     url: string;
     publishedAt: string | null;
   }>;
+  marketSignals: {
+    firstHalf1x2: {
+      homePct: number | null;
+      drawPct: number | null;
+      awayPct: number | null;
+      pick: string | null;
+    };
+    corners75: {
+      line: number;
+      overPct: number | null;
+      underPct: number | null;
+      pick: string | null;
+    };
+    cards35: {
+      line: number;
+      overPct: number | null;
+      underPct: number | null;
+      pick: string | null;
+    };
+  };
 }
 
 async function safeApiGet(path: string, params: Record<string, any>) {
@@ -268,6 +288,62 @@ function poissonProb(lambda: number, k: number) {
 function clampExpectedGoals(value: number) {
   if (!Number.isFinite(value)) return 1.25;
   return Math.max(0.2, Math.min(3.8, value));
+}
+
+function poissonProbAtLeast(lambda: number, thresholdInclusive: number, maxGoals = 20) {
+  if (!Number.isFinite(lambda) || lambda < 0) return null;
+  let cdf = 0;
+  for (let k = 0; k < thresholdInclusive; k++) {
+    cdf += poissonProb(lambda, k);
+  }
+  const tail = Math.max(0, 1 - cdf);
+  const cappedTail = Math.min(1, tail + Math.max(0, 1 - Array.from({ length: maxGoals + 1 }, (_, k) => poissonProb(lambda, k)).reduce((a, b) => a + b, 0)));
+  return cappedTail;
+}
+
+function firstHalf1x2FromExpectedGoals(expHome: number, expAway: number) {
+  const homeLambda = clampExpectedGoals(expHome * 0.46);
+  const awayLambda = clampExpectedGoals(expAway * 0.46);
+  const maxGoals = 7;
+  let home = 0;
+  let draw = 0;
+  let away = 0;
+  for (let hg = 0; hg <= maxGoals; hg++) {
+    for (let ag = 0; ag <= maxGoals; ag++) {
+      const p = poissonProb(homeLambda, hg) * poissonProb(awayLambda, ag);
+      if (hg > ag) home += p;
+      else if (hg === ag) draw += p;
+      else away += p;
+    }
+  }
+  const normalized = normalizeTo100(home * 100, draw * 100, away * 100);
+  const pick =
+    normalized.home >= normalized.draw && normalized.home >= normalized.away
+      ? 'Hazai'
+      : normalized.draw >= normalized.home && normalized.draw >= normalized.away
+        ? 'X'
+        : 'Vendeg';
+  return {
+    homePct: normalized.home,
+    drawPct: normalized.draw,
+    awayPct: normalized.away,
+    pick,
+  };
+}
+
+function buildTotalsMarketSignal(line: number, expectedTotal: number, overLabel: string, underLabel: string) {
+  if (!Number.isFinite(expectedTotal) || expectedTotal <= 0) {
+    return { line, overPct: null, underPct: null, pick: null };
+  }
+  const threshold = Math.floor(line) + 1;
+  const over = poissonProbAtLeast(expectedTotal, threshold);
+  if (over === null) {
+    return { line, overPct: null, underPct: null, pick: null };
+  }
+  const overPct = Number((over * 100).toFixed(1));
+  const underPct = Number((100 - overPct).toFixed(1));
+  const pick = overPct >= underPct ? `${overLabel} ${line} (${overPct}%)` : `${underLabel} ${line} (${underPct}%)`;
+  return { line, overPct, underPct, pick };
 }
 
 function getExpectedGoalsInputs(
@@ -710,6 +786,11 @@ export async function getMatchAnalysisContext(matchDetails: any): Promise<MatchA
       mostLikelyScore: '1-1',
     },
     newsIntel: [],
+    marketSignals: {
+      firstHalf1x2: { homePct: null, drawPct: null, awayPct: null, pick: null },
+      corners75: { line: 7.5, overPct: null, underPct: null, pick: null },
+      cards35: { line: 3.5, overPct: null, underPct: null, pick: null },
+    },
   };
 
   if (!fixtureId || !homeTeamId || !awayTeamId) return defaultContext;
@@ -780,6 +861,18 @@ export async function getMatchAnalysisContext(matchDetails: any): Promise<MatchA
   awayIntel.avgYellowCards = awayDiscipline.avgYellowCards;
   awayIntel.avgRedCards = awayDiscipline.avgRedCards;
   const monteCarlo = runMonteCarlo(homeIntel, awayIntel, { home: finalHomeXg, away: finalAwayXg });
+  const { expHome, expAway } = getExpectedGoalsInputs(homeIntel, awayIntel, { home: finalHomeXg, away: finalAwayXg });
+  const firstHalfSignal = firstHalf1x2FromExpectedGoals(expHome, expAway);
+  const cornersExpectedTotal =
+    (Number.isFinite(homeIntel.avgCorners as number) ? Number(homeIntel.avgCorners) : 0) +
+    (Number.isFinite(awayIntel.avgCorners as number) ? Number(awayIntel.avgCorners) : 0);
+  const cardsExpectedTotal =
+    (Number.isFinite(homeIntel.avgYellowCards as number) ? Number(homeIntel.avgYellowCards) : 0) +
+    (Number.isFinite(awayIntel.avgYellowCards as number) ? Number(awayIntel.avgYellowCards) : 0) +
+    (Number.isFinite(homeIntel.avgRedCards as number) ? Number(homeIntel.avgRedCards) : 0) +
+    (Number.isFinite(awayIntel.avgRedCards as number) ? Number(awayIntel.avgRedCards) : 0);
+  const corners75 = buildTotalsMarketSignal(7.5, cornersExpectedTotal, 'Over', 'Under');
+  const cards35 = buildTotalsMarketSignal(3.5, cardsExpectedTotal, 'Over', 'Under');
 
   return {
     prediction: predictionFirst,
@@ -804,6 +897,11 @@ export async function getMatchAnalysisContext(matchDetails: any): Promise<MatchA
     },
     monteCarlo,
     newsIntel,
+    marketSignals: {
+      firstHalf1x2: firstHalfSignal,
+      corners75,
+      cards35,
+    },
   };
 }
 
