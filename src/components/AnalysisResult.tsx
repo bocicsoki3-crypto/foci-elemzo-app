@@ -11,6 +11,24 @@ interface AnalysisResultProps {
   selectedMatch: any | null;
 }
 
+function parseSections(analysis: string) {
+  const lines = analysis.split('\n');
+  const sections: Array<{ title: string; lines: string[] }> = [];
+  let current = { title: 'Elemzés', lines: [] as string[] };
+
+  for (const rawLine of lines) {
+    const line = rawLine.trim();
+    if (line.startsWith('## ')) {
+      sections.push(current);
+      current = { title: line.replace(/^##\s*/, ''), lines: [] };
+      continue;
+    }
+    current.lines.push(rawLine);
+  }
+  sections.push(current);
+  return sections.filter((section) => section.lines.join('').trim() || section.title !== 'Elemzés');
+}
+
 export default function AnalysisResult({ analysis, loading, onRefresh, selectedMatch }: AnalysisResultProps) {
   if (!selectedMatch) {
     return (
@@ -63,17 +81,47 @@ export default function AnalysisResult({ analysis, loading, onRefresh, selectedM
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              className="prose prose-blue max-w-none text-gray-700 leading-relaxed space-y-4"
+              className="space-y-4"
             >
-              {analysis.split('\n').map((line, i) => {
-                if (line.startsWith('#')) {
-                  return <h3 key={i} className="text-xl font-bold text-gray-900 mt-6 mb-2">{line.replace(/^#+\s*/, '')}</h3>;
-                }
-                if (line.startsWith('*') || line.startsWith('-')) {
-                  return <li key={i} className="ml-4 list-disc">{line.replace(/^[\*-]\s*/, '')}</li>;
-                }
-                return line.trim() ? <p key={i}>{line}</p> : <br key={i} />;
-              })}
+              {parseSections(analysis).map((section, sectionIndex) => (
+                <div
+                  key={`${section.title}-${sectionIndex}`}
+                  className="rounded-xl border border-slate-200 bg-slate-50/60 p-4 shadow-sm"
+                >
+                  <div className="mb-3 inline-flex rounded-full bg-blue-100 px-3 py-1 text-xs font-semibold text-blue-700">
+                    {section.title}
+                  </div>
+
+                  <div className="space-y-2 text-sm text-slate-700 leading-relaxed">
+                    {section.lines.map((rawLine, lineIndex) => {
+                      const line = rawLine.trim();
+                      if (!line) return null;
+
+                      if (line.startsWith('- ') || line.startsWith('* ')) {
+                        return (
+                          <div key={lineIndex} className="flex gap-2">
+                            <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-blue-500" />
+                            <p>{line.replace(/^[-*]\s*/, '')}</p>
+                          </div>
+                        );
+                      }
+
+                      if (/^Forr[aá]s:/i.test(line)) {
+                        return (
+                          <p
+                            key={lineIndex}
+                            className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700 border border-amber-200"
+                          >
+                            {line}
+                          </p>
+                        );
+                      }
+
+                      return <p key={lineIndex}>{line}</p>;
+                    })}
+                  </div>
+                </div>
+              ))}
             </motion.div>
           ) : (
             <div className="text-center py-20 text-gray-400 italic">Nincs elérhető elemzés. Kattints a frissítésre!</div>

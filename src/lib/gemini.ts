@@ -12,6 +12,38 @@ const MODEL_CANDIDATES = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-fl
 
 let cachedModelNames: string[] | null = null;
 
+function normalize1X2Probabilities(analysis: string) {
+  const homeMatch = analysis.match(/Hazai:\s*(\d+(?:[.,]\d+)?)%/i);
+  const drawMatch = analysis.match(/D[oö]ntetlen:\s*(\d+(?:[.,]\d+)?)%/i);
+  const awayMatch = analysis.match(/Vend[eé]g:\s*(\d+(?:[.,]\d+)?)%/i);
+  if (!homeMatch || !drawMatch || !awayMatch) return analysis;
+
+  const toNumber = (value: string) => Number.parseFloat(value.replace(',', '.'));
+  const home = toNumber(homeMatch[1]);
+  const draw = toNumber(drawMatch[1]);
+  const away = toNumber(awayMatch[1]);
+  const total = home + draw + away;
+  if (!Number.isFinite(total) || total <= 0 || total === 100) return analysis;
+
+  const scale = 100 / total;
+  let homeNorm = Math.round(home * scale);
+  let drawNorm = Math.round(draw * scale);
+  let awayNorm = Math.round(away * scale);
+
+  const diff = 100 - (homeNorm + drawNorm + awayNorm);
+  awayNorm += diff;
+
+  return analysis
+    .replace(homeMatch[0], `Hazai: ${homeNorm}%`)
+    .replace(drawMatch[0], `Döntetlen: ${drawNorm}%`)
+    .replace(awayMatch[0], `Vendeg: ${awayNorm}%`);
+}
+
+function ensureSourceReminder(analysis: string) {
+  if (/Forr[aá]s:/i.test(analysis)) return analysis;
+  return `${analysis.trim()}\n\n_Forrás: prediction, h2h, injuries, lineups, recentForm, xG/xGA (ami nem érhető el: nem megerősített)._`;
+}
+
 async function getAvailableModelNames() {
   if (!API_KEY) return MODEL_CANDIDATES;
   if (cachedModelNames) return cachedModelNames;
@@ -75,6 +107,8 @@ MUKODESI SZABALYOK
 5) Adj gyakorlati, indokolt tippeket (nem csak vegeredmenyt).
 6) Ha xG/xGA nincs, ezt kulon jelold.
 7) Legyen tomor: max 2200 karakter.
+8) Az 1X2 szazalekok OSSZEGE legyen pontosan 100%.
+9) Minden szekcio vegen legyen egy rovid "Forras:" sor.
 
 VALASZ FORMATUM (MARKDOWN, pontosan ezekkel a cimekkel)
 ## 1) Gyors osszkep
@@ -123,7 +157,10 @@ A stilus legyen professzionalis, kozertheto, targyilagos.
       const result = await model.generateContent(prompt);
       const response = await result.response;
       const text = response.text();
-      if (text?.trim()) return text;
+      if (text?.trim()) {
+        const normalized = normalize1X2Probabilities(text);
+        return ensureSourceReminder(normalized);
+      }
     } catch (error) {
       lastError = error;
       console.error(`Error with Gemini model ${modelName}:`, error);
