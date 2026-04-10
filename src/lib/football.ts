@@ -52,7 +52,14 @@ export interface MatchAnalysisContext {
     injuries: boolean;
     xg: boolean;
     teamStats: boolean;
+    news: boolean;
   };
+  newsIntel: Array<{
+    title: string;
+    source: string;
+    url: string;
+    publishedAt: string | null;
+  }>;
 }
 
 async function safeApiGet(path: string, params: Record<string, any>) {
@@ -61,6 +68,68 @@ async function safeApiGet(path: string, params: Record<string, any>) {
     return response?.data?.response || [];
   } catch (error) {
     console.error(`RapidAPI call failed: ${path}`, error);
+    return [];
+  }
+}
+
+const TRUSTED_NEWS_DOMAINS = [
+  'reuters.com',
+  'bbc.com',
+  'skysports.com',
+  'espn.com',
+  'theathletic.com',
+  'uefa.com',
+  'fifa.com',
+  'bundesliga.com',
+  'premierleague.com',
+  'ligue1.com',
+  'seriea.com',
+  'laliga.com',
+];
+
+function decodeHtml(value: string) {
+  return value
+    .replace(/&amp;/g, '&')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>');
+}
+
+function extractTag(block: string, tag: string) {
+  const match = block.match(new RegExp(`<${tag}>([\\s\\S]*?)<\\/${tag}>`, 'i'));
+  return match?.[1] ? decodeHtml(match[1].trim()) : '';
+}
+
+async function fetchTrustedMatchNews(homeTeam: string, awayTeam: string) {
+  try {
+    const query = encodeURIComponent(`"${homeTeam}" "${awayTeam}" injury lineup football`);
+    const rssUrl = `https://news.google.com/rss/search?q=${query}&hl=en-US&gl=US&ceid=US:en`;
+    const response = await fetch(rssUrl, { method: 'GET' });
+    if (!response.ok) return [];
+
+    const xml = await response.text();
+    const itemBlocks = xml.match(/<item>[\s\S]*?<\/item>/gi) || [];
+    const parsed = itemBlocks
+      .map((item) => {
+        const title = extractTag(item, 'title');
+        const link = extractTag(item, 'link');
+        const pubDate = extractTag(item, 'pubDate');
+        const source = extractTag(item, 'source');
+        return {
+          title,
+          url: link,
+          source: source || 'unknown',
+          publishedAt: pubDate || null,
+        };
+      })
+      .filter((entry) => entry.title && entry.url)
+      .filter((entry) => TRUSTED_NEWS_DOMAINS.some((domain) => entry.url.includes(domain)))
+      .slice(0, 8);
+
+    return parsed;
+  } catch (error) {
+    console.error('Failed to fetch trusted news fallback:', error);
     return [];
   }
 }
@@ -352,14 +421,16 @@ export async function getMatchAnalysisContext(matchDetails: any): Promise<MatchA
       injuries: false,
       xg: false,
       teamStats: false,
+      news: false,
     },
+    newsIntel: [],
   };
 
   if (!fixtureId || !homeTeamId || !awayTeamId) return defaultContext;
 
   const leagueId = matchDetails?.competition?.id;
 
-  const [prediction, h2h, lineups, homeInjuries, awayInjuries, homeRecent, awayRecent, homeTeamStats, awayTeamStats] = await Promise.all([
+  const [prediction, h2h, lineups, homeInjuries, awayInjuries, homeRecent, awayRecent, homeTeamStats, awayTeamStats, newsIntel] = await Promise.all([
     safeApiGet('/predictions', { fixture: fixtureId }),
     safeApiGet('/fixtures/headtohead', { h2h: `${homeTeamId}-${awayTeamId}`, last: 5 }),
     safeApiGet('/fixtures/lineups', { fixture: fixtureId }),
@@ -369,6 +440,7 @@ export async function getMatchAnalysisContext(matchDetails: any): Promise<MatchA
     safeApiGet('/fixtures', { team: awayTeamId, last: 5 }),
     leagueId ? safeApiGet('/teams/statistics', { league: leagueId, season, team: homeTeamId }) : Promise.resolve([]),
     leagueId ? safeApiGet('/teams/statistics', { league: leagueId, season, team: awayTeamId }) : Promise.resolve([]),
+    fetchTrustedMatchNews(matchDetails?.homeTeam?.name || '', matchDetails?.awayTeam?.name || ''),
   ]);
 
   const [homeXg, awayXg] = await Promise.all([
@@ -414,7 +486,9 @@ export async function getMatchAnalysisContext(matchDetails: any): Promise<MatchA
       injuries: hasInjuries,
       xg: hasXg,
       teamStats: hasTeamStats,
+      news: Array.isArray(newsIntel) && newsIntel.length > 0,
     },
+    newsIntel,
   };
 }
 

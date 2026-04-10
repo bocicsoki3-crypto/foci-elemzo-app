@@ -205,6 +205,7 @@ function coerceStructured(parsed: any, context?: MatchAnalysisContext): Structur
     context?.dataAvailability?.lineups ? 'lineups' : null,
     context?.dataAvailability?.xg ? 'xG/xGA' : null,
     context?.dataAvailability?.teamStats ? 'teamStats' : null,
+    context?.dataAvailability?.news ? 'news' : null,
     'recentForm',
   ].filter(Boolean) as string[];
   const base: StructuredAnalysis = {
@@ -379,6 +380,9 @@ MUKODESI SZABALYOK
 10) Ha van prediction.percent adat, az 1X2 szazalekok azt kovessek.
 11) Hasznald kotelezoen a teamIntel mezot: PPG, GF/GA per meccs, clean sheet rate, failed-to-score rate, likely formation, missingPlayers.
 12) A missingPlayers alapjan konkretan jelezd a hianyzo kulcsembereket, ha vannak nevek.
+13) Hasznald a newsIntel listat csak bizonyitott tenyhez.
+14) Ha egy allitas newsIntel alapjan keszul, jelold "hirforras" cimkevel.
+15) Szigoruan tilos hianyzo adatot kitalalni: ha nincs adat, irj "nincs megbizhato adat".
 
 VALASZ FORMATUM:
 KIZAROLAG ervenyes JSON objektumot adj vissza, semmi egyeb szoveget.

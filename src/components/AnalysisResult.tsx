@@ -212,7 +212,8 @@ export default function AnalysisResult({
                         injuries: structuredAnalysis.dataQuality.sourceCoverage.includes('injuries'),
                         lineups: structuredAnalysis.dataQuality.sourceCoverage.includes('lineups'),
                         xg: structuredAnalysis.dataQuality.sourceCoverage.some((v) => v.toLowerCase().includes('xg')),
-                        teamStats: structuredAnalysis.dataQuality.sourceCoverage.includes('recentForm'),
+                        teamStats: structuredAnalysis.dataQuality.sourceCoverage.includes('teamStats'),
+                        news: structuredAnalysis.dataQuality.sourceCoverage.includes('news'),
                       }).map(([key, ok]) => (
                         <div
                           key={key}
