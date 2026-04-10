@@ -47,6 +47,11 @@ function toPercentNumber(value: unknown) {
 }
 
 function getContextProbabilities(context?: MatchAnalysisContext) {
+  const ready = context?.probabilities;
+  if (ready && Number.isFinite(ready.home) && Number.isFinite(ready.draw) && Number.isFinite(ready.away)) {
+    return ready;
+  }
+
   const percent = context?.prediction?.predictions?.percent;
   if (!percent) return null;
 

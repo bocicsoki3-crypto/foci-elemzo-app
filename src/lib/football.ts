@@ -16,6 +16,7 @@ const footballApi = axios.create({
 
 export interface MatchAnalysisContext {
   prediction: any | null;
+  probabilities: { home: number; draw: number; away: number };
   h2h: any[];
   lineups: any[];
   injuries: { home: any[]; away: any[] };
@@ -81,6 +82,59 @@ async function getTeamXgSummary(teamId: number, fixtures: any[]) {
   };
 }
 
+function normalizeTo100(home: number, draw: number, away: number) {
+  const total = home + draw + away;
+  if (!Number.isFinite(total) || total <= 0) return { home: 33, draw: 34, away: 33 };
+  const scale = 100 / total;
+  let h = Math.round(home * scale);
+  let d = Math.round(draw * scale);
+  let a = Math.round(away * scale);
+  a += 100 - (h + d + a);
+  return { home: h, draw: d, away: a };
+}
+
+function getPredictionProbabilities(prediction: any) {
+  const percent = prediction?.predictions?.percent;
+  const toNumber = (v: any) => Number.parseFloat(String(v ?? '').replace('%', '').replace(',', '.'));
+  const home = toNumber(percent?.home);
+  const draw = toNumber(percent?.draw);
+  const away = toNumber(percent?.away);
+  if (!Number.isFinite(home) || !Number.isFinite(draw) || !Number.isFinite(away)) return null;
+  return normalizeTo100(home, draw, away);
+}
+
+function getTeamRecentStrength(teamId: number, fixtures: any[]) {
+  let score = 0;
+  for (const fixture of fixtures.slice(0, 5)) {
+    const homeId = fixture?.teams?.home?.id;
+    const awayId = fixture?.teams?.away?.id;
+    const goalsHome = fixture?.goals?.home;
+    const goalsAway = fixture?.goals?.away;
+    if (!Number.isFinite(goalsHome) || !Number.isFinite(goalsAway)) continue;
+
+    const isHome = homeId === teamId;
+    const goalsFor = isHome ? goalsHome : goalsAway;
+    const goalsAgainst = isHome ? goalsAway : goalsHome;
+
+    if (goalsFor > goalsAgainst) score += 3;
+    else if (goalsFor === goalsAgainst) score += 1;
+    score += Math.max(-1, Math.min(1, (goalsFor - goalsAgainst) * 0.2));
+  }
+  return score;
+}
+
+function deriveFallbackProbabilities(homeTeamId: number, awayTeamId: number, homeRecent: any[], awayRecent: any[]) {
+  const homeStrength = getTeamRecentStrength(homeTeamId, homeRecent);
+  const awayStrength = getTeamRecentStrength(awayTeamId, awayRecent);
+  const delta = homeStrength - awayStrength;
+
+  // Baseline: home edge + draw weight, then adjust with recent form delta.
+  const home = 44 + delta * 2.2;
+  const away = 30 - delta * 1.8;
+  const draw = 26 - delta * 0.4;
+  return normalizeTo100(Math.max(10, home), Math.max(12, draw), Math.max(8, away));
+}
+
 export async function getMatches() {
   const today = format(new Date(), 'yyyy-MM-dd');
   const tomorrow = format(addDays(new Date(), 1), 'yyyy-MM-dd');
@@ -142,6 +196,7 @@ export async function getMatchAnalysisContext(matchDetails: any): Promise<MatchA
 
   const defaultContext: MatchAnalysisContext = {
     prediction: null,
+    probabilities: { home: 33, draw: 34, away: 33 },
     h2h: [],
     lineups: [],
     injuries: { home: [], away: [] },
@@ -169,8 +224,14 @@ export async function getMatchAnalysisContext(matchDetails: any): Promise<MatchA
     getTeamXgSummary(awayTeamId, awayRecent),
   ]);
 
+  const predictionFirst = prediction[0] || null;
+  const probabilities =
+    getPredictionProbabilities(predictionFirst) ||
+    deriveFallbackProbabilities(homeTeamId, awayTeamId, homeRecent, awayRecent);
+
   return {
-    prediction: prediction[0] || null,
+    prediction: predictionFirst,
+    probabilities,
     h2h,
     lineups,
     injuries: { home: homeInjuries, away: awayInjuries },

@@ -2,10 +2,22 @@
 
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { RefreshCw, Trophy, Info, ShieldCheck, ChevronDown, ChevronUp, ListFilter, Search } from 'lucide-react';
+import { RefreshCw, Trophy, Info, ShieldCheck, ChevronDown, ChevronUp, ListFilter, Search, X, History } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import MatchCard from '@/components/MatchCard';
 import AnalysisResult from '@/components/AnalysisResult';
+
+interface SavedAnalysis {
+  id: string;
+  createdAt: string;
+  leagueName: string;
+  homeTeam: string;
+  awayTeam: string;
+  matchId: number | string;
+  analysis: string;
+}
+
+const SAVED_ANALYSES_KEY = 'foci_saved_analyses_v1';
 
 export default function Home() {
   const [matches, setMatches] = useState<any[]>([]);
@@ -16,6 +28,14 @@ export default function Home() {
   const [analysisLoading, setAnalysisLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedLeagues, setExpandedLeagues] = useState<Set<string>>(new Set());
+  const [savedAnalyses, setSavedAnalyses] = useState<SavedAnalysis[]>([]);
+  const [isAnalysisModalOpen, setIsAnalysisModalOpen] = useState(false);
+  const [activeModalAnalysis, setActiveModalAnalysis] = useState<SavedAnalysis | null>(null);
+
+  const isSavableAnalysis = (value: string) =>
+    !value.includes('Hiba történt') &&
+    !value.includes('Kérlek add meg a Gemini API kulcsodat') &&
+    !value.includes('A Gemini szolgáltatás most nem elérhető');
 
   const toggleLeague = (leagueName: string) => {
     const newExpanded = new Set(expandedLeagues);
@@ -87,6 +107,65 @@ export default function Home() {
   useEffect(() => {
     fetchMatches();
   }, []);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(SAVED_ANALYSES_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        setSavedAnalyses(parsed);
+      }
+    } catch (err) {
+      console.error('Failed to load saved analyses:', err);
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(SAVED_ANALYSES_KEY, JSON.stringify(savedAnalyses));
+    } catch (err) {
+      console.error('Failed to persist saved analyses:', err);
+    }
+  }, [savedAnalyses]);
+
+  useEffect(() => {
+    if (!analysis || !selectedMatch || !isSavableAnalysis(analysis)) return;
+
+    const newEntry: SavedAnalysis = {
+      id: `${selectedMatch.id}-${Date.now()}`,
+      createdAt: new Date().toISOString(),
+      leagueName: selectedMatch?.competition?.name || 'Ismeretlen liga',
+      homeTeam: selectedMatch?.homeTeam?.name || 'Hazai',
+      awayTeam: selectedMatch?.awayTeam?.name || 'Vendég',
+      matchId: selectedMatch?.id || 'unknown',
+      analysis,
+    };
+
+    setSavedAnalyses((prev) => {
+      const withoutSameMatch = prev.filter((item) => item.matchId !== newEntry.matchId);
+      return [newEntry, ...withoutSameMatch].slice(0, 40);
+    });
+  }, [analysis, selectedMatch]);
+
+  const openLiveAnalysisModal = () => {
+    if (!analysis || !selectedMatch || !isSavableAnalysis(analysis)) return;
+    setActiveModalAnalysis({
+      id: `live-${selectedMatch.id}`,
+      createdAt: new Date().toISOString(),
+      leagueName: selectedMatch?.competition?.name || 'Ismeretlen liga',
+      homeTeam: selectedMatch?.homeTeam?.name || 'Hazai',
+      awayTeam: selectedMatch?.awayTeam?.name || 'Vendég',
+      matchId: selectedMatch?.id || 'unknown',
+      analysis,
+    });
+    setIsAnalysisModalOpen(true);
+  };
+
+  const openArchiveModal = () => {
+    setActiveModalAnalysis(savedAnalyses[0] || null);
+    setIsAnalysisModalOpen(true);
+  };
 
   const normalizedQuery = searchQuery.trim().toLocaleLowerCase('hu');
   const filteredMatches = matches.filter((match) => {
@@ -252,11 +331,119 @@ export default function Home() {
                 loading={analysisLoading}
                 onRefresh={handleRefreshAnalysis}
                 selectedMatch={selectedMatch}
+                onOpenModal={openLiveAnalysisModal}
+                onOpenArchive={openArchiveModal}
               />
             </div>
           </div>
         </div>
       </main>
+
+      <AnimatePresence>
+        {isAnalysisModalOpen && (
+          <motion.div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/70 backdrop-blur-sm p-4"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <motion.div
+              initial={{ scale: 0.96, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.96, opacity: 0 }}
+              className="w-full max-w-6xl max-h-[92vh] overflow-hidden rounded-2xl border border-slate-700 bg-gradient-to-br from-slate-900 via-slate-900 to-indigo-950 text-slate-100 shadow-2xl"
+            >
+              <div className="flex items-center justify-between border-b border-slate-700 px-6 py-4">
+                <div>
+                  <p className="text-xs uppercase tracking-wide text-slate-400">Mentett elemzések</p>
+                  <h3 className="text-lg font-bold text-white">
+                    {activeModalAnalysis
+                      ? `${activeModalAnalysis.homeTeam} vs ${activeModalAnalysis.awayTeam}`
+                      : 'Nincs kiválasztott elemzés'}
+                  </h3>
+                </div>
+                <button
+                  onClick={() => setIsAnalysisModalOpen(false)}
+                  className="rounded-lg p-2 text-slate-300 hover:bg-slate-800 hover:text-white"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-12 h-[calc(92vh-76px)]">
+                <div className="lg:col-span-8 overflow-y-auto p-6 custom-scrollbar">
+                  {activeModalAnalysis ? (
+                    <div className="space-y-4">
+                      <div className="rounded-xl border border-indigo-500/30 bg-indigo-500/10 p-4">
+                        <p className="text-xs text-indigo-300">{activeModalAnalysis.leagueName}</p>
+                        <p className="text-sm text-slate-300">
+                          Mentve: {new Date(activeModalAnalysis.createdAt).toLocaleString('hu-HU')}
+                        </p>
+                      </div>
+                      {activeModalAnalysis.analysis.split('\n').map((line, idx) => {
+                        const cleanLine = line.trim();
+                        if (!cleanLine) return null;
+                        if (cleanLine.startsWith('## ')) {
+                          return (
+                            <h4 key={idx} className="mt-6 mb-2 inline-flex rounded-full bg-cyan-500/20 px-3 py-1 text-sm font-semibold text-cyan-200">
+                              {cleanLine.replace('## ', '')}
+                            </h4>
+                          );
+                        }
+                        if (cleanLine.startsWith('- ') || cleanLine.startsWith('* ')) {
+                          return (
+                            <div key={idx} className="flex gap-2 text-sm text-slate-200">
+                              <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-cyan-400" />
+                              <p>{cleanLine.replace(/^[-*]\s*/, '')}</p>
+                            </div>
+                          );
+                        }
+                        return <p key={idx} className="text-sm text-slate-200 leading-relaxed">{cleanLine}</p>;
+                      })}
+                    </div>
+                  ) : (
+                    <div className="h-full flex items-center justify-center text-slate-400">
+                      Válassz egy mentett elemzést a jobb oldali listából.
+                    </div>
+                  )}
+                </div>
+
+                <div className="lg:col-span-4 border-l border-slate-700 bg-slate-950/60 overflow-y-auto custom-scrollbar">
+                  <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-700">
+                    <History className="w-4 h-4 text-slate-300" />
+                    <span className="text-sm font-semibold text-slate-200">Elemzés előzmények</span>
+                  </div>
+                  <div className="p-3 space-y-2">
+                    {savedAnalyses.length === 0 ? (
+                      <div className="rounded-lg border border-slate-700 p-3 text-xs text-slate-400">
+                        Még nincs mentett elemzés.
+                      </div>
+                    ) : (
+                      savedAnalyses.map((item) => (
+                        <button
+                          key={item.id}
+                          onClick={() => setActiveModalAnalysis(item)}
+                          className={`w-full rounded-lg border p-3 text-left transition ${
+                            activeModalAnalysis?.id === item.id
+                              ? 'border-cyan-500 bg-cyan-500/10'
+                              : 'border-slate-700 hover:border-slate-500 hover:bg-slate-800/40'
+                          }`}
+                        >
+                          <p className="text-sm font-semibold text-slate-100">{item.homeTeam} vs {item.awayTeam}</p>
+                          <p className="text-xs text-slate-400">{item.leagueName}</p>
+                          <p className="text-[11px] text-slate-500 mt-1">
+                            {new Date(item.createdAt).toLocaleString('hu-HU')}
+                          </p>
+                        </button>
+                      ))
+                    )}
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Footer */}
       <footer className="mt-auto border-t border-slate-200 bg-white py-8">

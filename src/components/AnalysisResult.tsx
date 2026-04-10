@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Bot, Sparkles, Loader2, RefreshCw } from 'lucide-react';
+import { Bot, Sparkles, Loader2, RefreshCw, Expand, History } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface AnalysisResultProps {
@@ -9,6 +9,8 @@ interface AnalysisResultProps {
   loading: boolean;
   onRefresh: () => void;
   selectedMatch: any | null;
+  onOpenModal: () => void;
+  onOpenArchive: () => void;
 }
 
 function parseSections(analysis: string) {
@@ -29,7 +31,14 @@ function parseSections(analysis: string) {
   return sections.filter((section) => section.lines.join('').trim() || section.title !== 'Elemzés');
 }
 
-export default function AnalysisResult({ analysis, loading, onRefresh, selectedMatch }: AnalysisResultProps) {
+export default function AnalysisResult({
+  analysis,
+  loading,
+  onRefresh,
+  selectedMatch,
+  onOpenModal,
+  onOpenArchive,
+}: AnalysisResultProps) {
   if (!selectedMatch) {
     return (
       <div className="flex flex-col items-center justify-center p-12 bg-white rounded-2xl border-2 border-dashed border-gray-100 text-center">
@@ -54,14 +63,31 @@ export default function AnalysisResult({ analysis, loading, onRefresh, selectedM
             <p className="text-xs text-blue-600 font-medium">{selectedMatch.homeTeam.name} vs {selectedMatch.awayTeam.name}</p>
           </div>
         </div>
-        <button
-          onClick={onRefresh}
-          disabled={loading}
-          className="p-2 text-gray-500 hover:text-blue-600 hover:bg-white rounded-lg transition-all disabled:opacity-50"
-          title="Elemzés frissítése"
-        >
-          <RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={onOpenArchive}
+            className="p-2 text-gray-500 hover:text-blue-600 hover:bg-white rounded-lg transition-all"
+            title="Mentett elemzések"
+          >
+            <History className="w-5 h-5" />
+          </button>
+          <button
+            onClick={onOpenModal}
+            disabled={!analysis}
+            className="p-2 text-gray-500 hover:text-blue-600 hover:bg-white rounded-lg transition-all disabled:opacity-40"
+            title="Elemzés megnyitása"
+          >
+            <Expand className="w-5 h-5" />
+          </button>
+          <button
+            onClick={onRefresh}
+            disabled={loading}
+            className="p-2 text-gray-500 hover:text-blue-600 hover:bg-white rounded-lg transition-all disabled:opacity-50"
+            title="Elemzés frissítése"
+          >
+            <RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
+          </button>
+        </div>
       </div>
 
       <div className="p-6 flex-1 overflow-y-auto">
