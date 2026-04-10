@@ -1,13 +1,15 @@
 import axios from 'axios';
 import { format, addDays } from 'date-fns';
 
-const API_KEY = process.env.FOOTBALL_API_KEY;
-const BASE_URL = 'https://api.football-data.org/v4';
+const RAPIDAPI_KEY = process.env.RAPIDAPI_KEY || '61997511aemshdaf4b252a720079p181ed3jsn75e06d011c45';
+const RAPIDAPI_HOST = 'api-football-v1.p.rapidapi.com';
+const BASE_URL = 'https://api-football-v1.p.rapidapi.com/v3';
 
 const footballApi = axios.create({
   baseURL: BASE_URL,
   headers: {
-    'X-Auth-Token': API_KEY,
+    'x-rapidapi-key': RAPIDAPI_KEY,
+    'x-rapidapi-host': RAPIDAPI_HOST,
   },
 });
 
@@ -16,23 +18,47 @@ export async function getMatches() {
   const tomorrow = format(addDays(new Date(), 1), 'yyyy-MM-dd');
 
   try {
-    if (!API_KEY || API_KEY === 'your_football_api_key_here') {
-      console.log('No valid API key found. Using mock data.');
+    // API-Football v3 uses /fixtures?date=YYYY-MM-DD
+    const [todayResponse, tomorrowResponse] = await Promise.all([
+      footballApi.get('/fixtures', { params: { date: today } }),
+      footballApi.get('/fixtures', { params: { date: tomorrow } }),
+    ]);
+
+    const todayMatches = todayResponse.data.response || [];
+    const tomorrowMatches = tomorrowResponse.data.response || [];
+    const allMatches = [...todayMatches, ...tomorrowMatches];
+
+    if (allMatches.length === 0) {
+      console.log('No matches found from RapidAPI. Using mock data.');
       return getMockMatches();
     }
 
-    const response = await footballApi.get(`/matches`, {
-      params: {
-        dateFrom: today,
-        dateTo: tomorrow,
+    return allMatches.map((match: any) => ({
+      id: match.fixture.id,
+      utcDate: match.fixture.date,
+      status: match.fixture.status.short,
+      matchday: match.league.round,
+      homeTeam: { 
+        name: match.teams.home.name, 
+        shortName: match.teams.home.name, 
+        tla: match.teams.home.name.substring(0, 3).toUpperCase(), 
+        crest: match.teams.home.logo 
       },
-    });
+      awayTeam: { 
+        name: match.teams.away.name, 
+        shortName: match.teams.away.name, 
+        tla: match.teams.away.name.substring(0, 3).toUpperCase(), 
+        crest: match.teams.away.logo 
+      },
+      competition: { 
+        name: match.league.name, 
+        emblem: match.league.logo 
+      },
+    }));
 
-    return response.data.matches;
   } catch (error) {
-    console.error('Error fetching football matches:', error);
-    // Return mock data if API key is missing or error occurs
-    console.log('Falling back to mock matches due to error or missing API key.');
+    console.error('Error fetching football matches from RapidAPI:', error);
+    console.log('Falling back to mock matches due to error.');
     return getMockMatches();
   }
 }
