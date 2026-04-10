@@ -37,22 +37,22 @@ export async function getMatches() {
       id: match.fixture.id,
       utcDate: match.fixture.date,
       status: match.fixture.status.short,
-      matchday: match.league.round,
+      matchday: match.league?.round || 'Ismeretlen',
       homeTeam: { 
-        name: match.teams.home.name, 
-        shortName: match.teams.home.name, 
-        tla: match.teams.home.name.substring(0, 3).toUpperCase(), 
-        crest: match.teams.home.logo 
+        name: match.teams?.home?.name || 'Ismeretlen', 
+        shortName: match.teams?.home?.name || 'Ismeretlen', 
+        tla: match.teams?.home?.name?.substring(0, 3).toUpperCase() || 'UNK', 
+        crest: match.teams?.home?.logo || ''
       },
       awayTeam: { 
-        name: match.teams.away.name, 
-        shortName: match.teams.away.name, 
-        tla: match.teams.away.name.substring(0, 3).toUpperCase(), 
-        crest: match.teams.away.logo 
+        name: match.teams?.away?.name || 'Ismeretlen', 
+        shortName: match.teams?.away?.name || 'Ismeretlen', 
+        tla: match.teams?.away?.name?.substring(0, 3).toUpperCase() || 'UNK', 
+        crest: match.teams?.away?.logo || ''
       },
       competition: { 
-        name: match.league.name, 
-        emblem: match.league.logo 
+        name: match.league?.name || 'Egyéb mérkőzések', 
+        emblem: match.league?.logo || ''
       },
     }));
 

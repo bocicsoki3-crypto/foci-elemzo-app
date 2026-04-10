@@ -76,7 +76,7 @@ export default function Home() {
   });
 
   const groupedMatches = filteredMatches.reduce((groups, match) => {
-    const leagueName = match.competition.name;
+    const leagueName = match?.competition?.name || 'Egyéb mérkőzések';
     if (!groups[leagueName]) {
       groups[leagueName] = [];
     }
