@@ -141,6 +141,13 @@ export default function Home() {
     fetchMatches();
   }, []);
 
+  // Safety net: if data is already present, never keep skeleton stuck.
+  useEffect(() => {
+    if (loading && matches.length > 0) {
+      setLoading(false);
+    }
+  }, [loading, matches]);
+
   useEffect(() => {
     try {
       const raw = localStorage.getItem(SAVED_ANALYSES_KEY);
@@ -310,7 +317,7 @@ export default function Home() {
 
               <div className="flex flex-col gap-3 max-h-[calc(100vh-280px)] overflow-y-auto pr-2 custom-scrollbar">
                 <AnimatePresence mode="popLayout">
-                  {loading ? (
+                  {loading && matches.length === 0 ? (
                     [...Array(6)].map((_, i) => (
                       <div key={i} className="h-16 w-full bg-slate-200/50 animate-pulse rounded-xl"></div>
                     ))
