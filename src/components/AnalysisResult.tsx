@@ -1,0 +1,89 @@
+'use client';
+
+import React from 'react';
+import { Bot, Sparkles, Loader2, RefreshCw } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+
+interface AnalysisResultProps {
+  analysis: string | null;
+  loading: boolean;
+  onRefresh: () => void;
+  selectedMatch: any | null;
+}
+
+export default function AnalysisResult({ analysis, loading, onRefresh, selectedMatch }: AnalysisResultProps) {
+  if (!selectedMatch) {
+    return (
+      <div className="flex flex-col items-center justify-center p-12 bg-white rounded-2xl border-2 border-dashed border-gray-100 text-center">
+        <div className="w-16 h-16 bg-blue-50 text-blue-500 rounded-full flex items-center justify-center mb-4">
+          <Bot className="w-8 h-8" />
+        </div>
+        <h3 className="text-xl font-bold text-gray-800 mb-2">Válassz egy mérkőzést</h3>
+        <p className="text-gray-500 max-w-md">Válaszd ki a listából azt a mérkőzést, amit a Gemini AI-val szeretnél kielemeztetni.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden flex flex-col min-h-[500px]">
+      <div className="p-6 border-b border-gray-50 bg-gradient-to-r from-blue-50 to-indigo-50 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 bg-blue-600 text-white rounded-xl flex items-center justify-center shadow-lg shadow-blue-200">
+            <Sparkles className="w-6 h-6" />
+          </div>
+          <div>
+            <h2 className="text-lg font-bold text-gray-900 leading-tight">Gemini AI Elemzés</h2>
+            <p className="text-xs text-blue-600 font-medium">{selectedMatch.homeTeam.name} vs {selectedMatch.awayTeam.name}</p>
+          </div>
+        </div>
+        <button
+          onClick={onRefresh}
+          disabled={loading}
+          className="p-2 text-gray-500 hover:text-blue-600 hover:bg-white rounded-lg transition-all disabled:opacity-50"
+          title="Elemzés frissítése"
+        >
+          <RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
+        </button>
+      </div>
+
+      <div className="p-6 flex-1 overflow-y-auto">
+        <AnimatePresence mode="wait">
+          {loading ? (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="flex flex-col items-center justify-center py-20 text-center"
+            >
+              <Loader2 className="w-12 h-12 text-blue-500 animate-spin mb-4" />
+              <p className="text-gray-600 font-medium">Gemini éppen elemzi a mérkőzést...</p>
+              <p className="text-xs text-gray-400 mt-2">Ez eltarthat pár másodpercig</p>
+            </motion.div>
+          ) : analysis ? (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="prose prose-blue max-w-none text-gray-700 leading-relaxed space-y-4"
+            >
+              {analysis.split('\n').map((line, i) => {
+                if (line.startsWith('#')) {
+                  return <h3 key={i} className="text-xl font-bold text-gray-900 mt-6 mb-2">{line.replace(/^#+\s*/, '')}</h3>;
+                }
+                if (line.startsWith('*') || line.startsWith('-')) {
+                  return <li key={i} className="ml-4 list-disc">{line.replace(/^[\*-]\s*/, '')}</li>;
+                }
+                return line.trim() ? <p key={i}>{line}</p> : <br key={i} />;
+              })}
+            </motion.div>
+          ) : (
+            <div className="text-center py-20 text-gray-400 italic">Nincs elérhető elemzés. Kattints a frissítésre!</div>
+          )}
+        </AnimatePresence>
+      </div>
+
+      <div className="p-4 bg-gray-50 text-[10px] text-gray-400 text-center">
+        Az elemzés mesterséges intelligencia segítségével készült. Kérjük, felelősségteljesen fogadj!
+      </div>
+    </div>
+  );
+}
