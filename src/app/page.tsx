@@ -84,7 +84,20 @@ export default function Home() {
     return groups;
   }, {} as Record<string, any[]>);
 
-  const sortedLeagueNames = Object.keys(groupedMatches).sort((a, b) => a.localeCompare(b));
+  const getMatchLabel = (match: any) => {
+    const home = match?.homeTeam?.shortName || match?.homeTeam?.name || '';
+    const away = match?.awayTeam?.shortName || match?.awayTeam?.name || '';
+    return `${home} - ${away}`;
+  };
+
+  const sortedLeagueEntries = Object.entries(groupedMatches)
+    .sort(([leagueA], [leagueB]) => leagueA.localeCompare(leagueB, 'hu', { sensitivity: 'base' }))
+    .map(([leagueName, leagueMatches]) => [
+      leagueName,
+      [...leagueMatches].sort((matchA, matchB) =>
+        getMatchLabel(matchA).localeCompare(getMatchLabel(matchB), 'hu', { sensitivity: 'base' })
+      ),
+    ] as [string, any[]]);
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] text-slate-900 font-sans">
@@ -157,14 +170,13 @@ export default function Home() {
                       <Info className="w-8 h-8 mx-auto mb-2 opacity-50" />
                       {error}
                     </div>
-                  ) : sortedLeagueNames.length === 0 ? (
+                  ) : sortedLeagueEntries.length === 0 ? (
                     <div className="p-12 text-center bg-white border border-slate-100 rounded-2xl text-slate-400 font-medium">
                       Nincs elérhető mérkőzés ezen a napon.
                     </div>
                   ) : (
-                    sortedLeagueNames.map((leagueName) => {
+                    sortedLeagueEntries.map(([leagueName, leagueMatches]) => {
                       const isExpanded = expandedLeagues.has(leagueName);
-                      const leagueMatches = groupedMatches[leagueName];
                       const emblem = leagueMatches[0]?.competition?.emblem;
 
                       return (
