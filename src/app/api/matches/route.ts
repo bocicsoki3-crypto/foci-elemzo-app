@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { getMatches } from '@/lib/football';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET() {
   try {
     const matches = await getMatches();
