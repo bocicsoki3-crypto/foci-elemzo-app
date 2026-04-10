@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { format, isToday, isTomorrow } from 'date-fns';
-import { Calendar, RefreshCw, Trophy, Bot, Info, ShieldCheck, ChevronDown, ListFilter } from 'lucide-react';
+import { Calendar, RefreshCw, Trophy, Bot, Info, ShieldCheck, ChevronDown, ChevronUp, ListFilter } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import MatchCard from '@/components/MatchCard';
 import AnalysisResult from '@/components/AnalysisResult';
@@ -16,6 +16,17 @@ export default function Home() {
   const [analysis, setAnalysis] = useState<string | null>(null);
   const [analysisLoading, setAnalysisLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<'today' | 'tomorrow'>('today');
+  const [expandedLeagues, setExpandedLeagues] = useState<Set<string>>(new Set());
+
+  const toggleLeague = (leagueName: string) => {
+    const newExpanded = new Set(expandedLeagues);
+    if (newExpanded.has(leagueName)) {
+      newExpanded.delete(leagueName);
+    } else {
+      newExpanded.add(leagueName);
+    }
+    setExpandedLeagues(newExpanded);
+  };
 
   const fetchMatches = async () => {
     setLoading(true);
@@ -63,6 +74,17 @@ export default function Home() {
     if (activeTab === 'tomorrow') return isTomorrow(matchDate);
     return false;
   });
+
+  const groupedMatches = filteredMatches.reduce((groups, match) => {
+    const leagueName = match.competition.name;
+    if (!groups[leagueName]) {
+      groups[leagueName] = [];
+    }
+    groups[leagueName].push(match);
+    return groups;
+  }, {} as Record<string, any[]>);
+
+  const sortedLeagueNames = Object.keys(groupedMatches).sort((a, b) => a.localeCompare(b));
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] text-slate-900 font-sans">
@@ -128,33 +150,70 @@ export default function Home() {
                 <AnimatePresence mode="popLayout">
                   {loading ? (
                     [...Array(6)].map((_, i) => (
-                      <div key={i} className="h-32 w-full bg-slate-200/50 animate-pulse rounded-xl"></div>
+                      <div key={i} className="h-16 w-full bg-slate-200/50 animate-pulse rounded-xl"></div>
                     ))
                   ) : error ? (
                     <div className="p-8 text-center bg-red-50 text-red-600 rounded-2xl border border-red-100 font-medium">
                       <Info className="w-8 h-8 mx-auto mb-2 opacity-50" />
                       {error}
                     </div>
-                  ) : filteredMatches.length === 0 ? (
+                  ) : sortedLeagueNames.length === 0 ? (
                     <div className="p-12 text-center bg-white border border-slate-100 rounded-2xl text-slate-400 font-medium">
                       Nincs elérhető mérkőzés ezen a napon.
                     </div>
                   ) : (
-                    filteredMatches.map((match) => (
-                      <motion.div
-                        key={match.id}
-                        initial={{ opacity: 0, x: -20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        exit={{ opacity: 0, x: -20 }}
-                        transition={{ duration: 0.2 }}
-                      >
-                        <MatchCard
-                          match={match}
-                          onSelect={handleSelectMatch}
-                          isSelected={selectedMatch?.id === match.id}
-                        />
-                      </motion.div>
-                    ))
+                    sortedLeagueNames.map((leagueName) => {
+                      const isExpanded = expandedLeagues.has(leagueName);
+                      const leagueMatches = groupedMatches[leagueName];
+                      const emblem = leagueMatches[0]?.competition?.emblem;
+
+                      return (
+                        <div key={leagueName} className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden mb-3">
+                          <button
+                            onClick={() => toggleLeague(leagueName)}
+                            className="w-full flex items-center justify-between p-4 bg-slate-50 hover:bg-slate-100 transition-colors"
+                          >
+                            <div className="flex items-center gap-3">
+                              {emblem && (
+                                <img src={emblem} alt={leagueName} className="w-6 h-6 object-contain" />
+                              )}
+                              <span className="font-bold text-slate-800">{leagueName}</span>
+                              <span className="bg-white px-2 py-0.5 rounded-full text-xs font-semibold text-slate-500 border border-slate-200">
+                                {leagueMatches.length}
+                              </span>
+                            </div>
+                            {isExpanded ? (
+                              <ChevronUp className="w-5 h-5 text-slate-400" />
+                            ) : (
+                              <ChevronDown className="w-5 h-5 text-slate-400" />
+                            )}
+                          </button>
+
+                          <AnimatePresence>
+                            {isExpanded && (
+                              <motion.div
+                                initial={{ height: 0, opacity: 0 }}
+                                animate={{ height: 'auto', opacity: 1 }}
+                                exit={{ height: 0, opacity: 0 }}
+                                transition={{ duration: 0.2 }}
+                                className="overflow-hidden"
+                              >
+                                <div className="p-4 flex flex-col gap-3 border-t border-slate-100 bg-white">
+                                  {leagueMatches.map((match) => (
+                                    <MatchCard
+                                      key={match.id}
+                                      match={match}
+                                      onSelect={handleSelectMatch}
+                                      isSelected={selectedMatch?.id === match.id}
+                                    />
+                                  ))}
+                                </div>
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
+                        </div>
+                      );
+                    })
                   )}
                 </AnimatePresence>
               </div>
