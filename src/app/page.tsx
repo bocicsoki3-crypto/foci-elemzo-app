@@ -290,11 +290,11 @@ export default function Home() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
-        <div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
+      <main className="mx-auto max-w-[1700px] px-3 py-8 sm:px-4 lg:px-5">
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
           
           {/* Left Column: Match List */}
-          <div className="lg:col-span-5 flex flex-col gap-6">
+          <div className="lg:col-span-4 xl:col-span-3 flex flex-col gap-5">
             <div className="flex flex-col gap-4">
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2 bg-slate-800/70 px-3 py-2 rounded-xl border border-slate-700 shadow-sm flex-1">
@@ -312,7 +312,7 @@ export default function Home() {
                 </div>
               </div>
 
-              <div className="flex flex-col gap-3 max-h-[calc(100vh-280px)] overflow-y-auto pr-2 custom-scrollbar">
+              <div className="flex flex-col gap-2.5 max-h-[calc(100vh-240px)] overflow-y-auto pr-1 custom-scrollbar">
                 <AnimatePresence mode="popLayout">
                   {loading && matches.length === 0 ? (
                     [...Array(6)].map((_, i) => (
@@ -343,7 +343,7 @@ export default function Home() {
           </div>
 
           {/* Right Column: Analysis */}
-          <div className="lg:col-span-7">
+          <div className="lg:col-span-8 xl:col-span-9">
             <div className="sticky top-24">
               <AnalysisResult
                 analysis={analysis}
