@@ -7,6 +7,7 @@ const BASE_URL = 'https://api-football-v1.p.rapidapi.com/v3';
 
 const footballApi = axios.create({
   baseURL: BASE_URL,
+  timeout: 12000,
   headers: {
     'x-rapidapi-key': RAPIDAPI_KEY,
     'x-rapidapi-host': RAPIDAPI_HOST,
@@ -19,13 +20,15 @@ export async function getMatches() {
 
   try {
     // API-Football v3 uses /fixtures?date=YYYY-MM-DD
-    const [todayResponse, tomorrowResponse] = await Promise.all([
+    const [todayResult, tomorrowResult] = await Promise.allSettled([
       footballApi.get('/fixtures', { params: { date: today } }),
       footballApi.get('/fixtures', { params: { date: tomorrow } }),
     ]);
 
-    const todayMatches = todayResponse.data.response || [];
-    const tomorrowMatches = tomorrowResponse.data.response || [];
+    const todayMatches =
+      todayResult.status === 'fulfilled' ? todayResult.value.data.response || [] : [];
+    const tomorrowMatches =
+      tomorrowResult.status === 'fulfilled' ? tomorrowResult.value.data.response || [] : [];
     const allMatches = [...todayMatches, ...tomorrowMatches];
 
     if (allMatches.length === 0) {

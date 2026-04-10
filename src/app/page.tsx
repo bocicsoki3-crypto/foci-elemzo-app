@@ -32,7 +32,7 @@ export default function Home() {
     setLoading(true);
     setError(null);
     try {
-      const response = await axios.get('/api/matches');
+      const response = await axios.get('/api/matches', { timeout: 15000 });
       setMatches(response.data);
     } catch (err) {
       console.error('Error fetching matches:', err);
