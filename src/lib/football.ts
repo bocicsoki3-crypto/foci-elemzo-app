@@ -587,6 +587,7 @@ function buildTeamIntel(teamStats: any, injuries: any[], lineups: any[], teamId:
   const likelyFormation = lineup?.formation || null;
 
   const missingPlayers = (injuries || [])
+    .filter((item: any) => !item?.team?.id || item?.team?.id === teamId)
     .slice(0, 8)
     .map((item: any) => {
       const name = item?.player?.name;
