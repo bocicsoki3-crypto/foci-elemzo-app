@@ -11,23 +11,62 @@ const genAI = new GoogleGenerativeAI(API_KEY || "");
 export async function analyzeMatch(matchDetails: any) {
   const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
+  const competitionName = matchDetails?.competition?.name || "Ismeretlen bajnokság";
+  const homeTeamName = matchDetails?.homeTeam?.name || "Ismeretlen hazai csapat";
+  const awayTeamName = matchDetails?.awayTeam?.name || "Ismeretlen vendég csapat";
+  const kickoff = matchDetails?.utcDate || "Ismeretlen időpont";
+  const matchday = matchDetails?.matchday || "Ismeretlen forduló";
+
   const prompt = `
-    Te egy profi futball elemző és fogadási szakértő vagy. 
-    Elemezd a következő mérkőzést:
-    
-    Bajnokság: ${matchDetails.competition.name}
-    Hazai csapat: ${matchDetails.homeTeam.name}
-    Vendég csapat: ${matchDetails.awayTeam.name}
-    Időpont: ${matchDetails.utcDate}
-    
-    Kérlek adj meg egy részletes elemzést az alábbi szempontok alapján:
-    1. Esélylatolgatás (ki a favorit és miért)
-    2. Várható taktika és kulcsjátékosok
-    3. Gólszám tipp (under/over)
-    4. Pontos végeredmény tipp
-    5. Biztonsági tipp (pl. 1X, X2, vagy DNB)
-    
-    A válaszod legyen professzionális, lényegre törő és magyar nyelvű. Használj formázást (markdown).
+Te egy profi futballelemzo es kockazatkezelo fogadasi szakerto vagy.
+Feladatod: adj hasznalhato, rovid, de szakmai meccselemzest magyar nyelven.
+
+MERKOZES ADATOK
+- Bajnoksag: ${competitionName}
+- Fordulo: ${matchday}
+- Hazai: ${homeTeamName}
+- Vendeg: ${awayTeamName}
+- Kezdes (UTC): ${kickoff}
+
+MUKODESI SZABALYOK
+1) Ha egy adat nem biztos (pl. serulesek, varhato kezdok), jelezd egyertelmuen: "nem megerositett".
+2) Ne allits tenykent olyat, amit nem tudsz ellenorizni.
+3) Keruld a tulhypeolt, clickbait mondatokat.
+4) Adj gyakorlati, indokolt tippeket (nem csak vegeredmenyt).
+5) Legyen tomor: max 2200 karakter.
+
+VALASZ FORMATUM (MARKDOWN, pontosan ezekkel a cimekkel)
+## 1) Gyors osszkep
+- 3-5 rovid bullet: forma, motivacio, meccskep varhato iranya
+
+## 2) Eselyek (1X2)
+- Hazai: XX%
+- Döntetlen: XX%
+- Vendeg: XX%
+- Indoklas 3-4 rovid pontban
+- Fontos: az osszeg legyen 100%
+
+## 3) Taktikai kep es kulcspontok
+- Hazai terv (tamadas/vedekezes/atmenetek)
+- Vendeg terv (tamadas/vedekezes/atmenetek)
+- 2-3 potencialis meccsdonto parharc vagy zona
+
+## 4) Golpiaci varakozas
+- Over/Under 2.5: melyik es miert
+- BTTS (mindket csapat golt szerez): Igen/Nem + rovid indoklas
+
+## 5) Tippjavaslatok (kockazat szerint)
+- Konzervativ tipp:
+- Kiegyensulyozott tipp:
+- Magas kockazatu tipp:
+- Minden tipphez 1 mondat indoklas
+
+## 6) Pontos tipp es bizalom
+- Varhato vegeredmeny:
+- Bizalmi szint (1-10):
+- 2 fo kockazati faktor, ami borithatja a tippet
+
+A stilus legyen professzionalis, kozertheto, targyilagos.
   `;
 
   try {
