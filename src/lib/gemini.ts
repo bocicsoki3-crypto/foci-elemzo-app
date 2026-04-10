@@ -39,6 +39,65 @@ function normalize1X2Probabilities(analysis: string) {
     .replace(awayMatch[0], `Vendeg: ${awayNorm}%`);
 }
 
+function toPercentNumber(value: unknown) {
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  if (typeof value !== 'string') return null;
+  const parsed = Number.parseFloat(value.replace('%', '').replace(',', '.').trim());
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function getContextProbabilities(context?: MatchAnalysisContext) {
+  const percent = context?.prediction?.predictions?.percent;
+  if (!percent) return null;
+
+  const home = toPercentNumber(percent.home);
+  const draw = toPercentNumber(percent.draw);
+  const away = toPercentNumber(percent.away);
+
+  if (home === null || draw === null || away === null) return null;
+  const total = home + draw + away;
+  if (total <= 0) return null;
+
+  const scale = 100 / total;
+  let homeNorm = Math.round(home * scale);
+  let drawNorm = Math.round(draw * scale);
+  let awayNorm = Math.round(away * scale);
+  const diff = 100 - (homeNorm + drawNorm + awayNorm);
+  awayNorm += diff;
+
+  return { home: homeNorm, draw: drawNorm, away: awayNorm };
+}
+
+function applyContextProbabilities(analysis: string, context?: MatchAnalysisContext) {
+  const probs = getContextProbabilities(context);
+  if (!probs) return analysis;
+
+  let updated = analysis;
+  const homeRegex = /Hazai:\s*\d+(?:[.,]\d+)?%/i;
+  const drawRegex = /D[oö]ntetlen:\s*\d+(?:[.,]\d+)?%/i;
+  const awayRegex = /Vend[eé]g:\s*\d+(?:[.,]\d+)?%/i;
+
+  if (homeRegex.test(updated)) {
+    updated = updated.replace(homeRegex, `Hazai: ${probs.home}%`);
+  } else {
+    updated = updated.replace(/##\s*2\)\s*Eselyek\s*\(1X2\)/i, `## 2) Eselyek (1X2)\n- Hazai: ${probs.home}%`);
+  }
+
+  if (drawRegex.test(updated)) {
+    updated = updated.replace(drawRegex, `Döntetlen: ${probs.draw}%`);
+  } else {
+    updated = updated.replace(/Hazai:\s*\d+(?:[.,]\d+)?%/i, (m) => `${m}\n- Döntetlen: ${probs.draw}%`);
+  }
+
+  if (awayRegex.test(updated)) {
+    updated = updated.replace(awayRegex, `Vendeg: ${probs.away}%`);
+  } else {
+    updated = updated.replace(/D[oö]ntetlen:\s*\d+(?:[.,]\d+)?%/i, (m) => `${m}\n- Vendeg: ${probs.away}%`);
+  }
+
+  return updated;
+}
+
 function ensureSourceReminder(analysis: string) {
   if (/Forr[aá]s:/i.test(analysis)) return analysis;
   return `${analysis.trim()}\n\n_Forrás: prediction, h2h, injuries, lineups, recentForm, xG/xGA (ami nem érhető el: nem megerősített)._`;
@@ -109,6 +168,7 @@ MUKODESI SZABALYOK
 7) Legyen tomor: max 2200 karakter.
 8) Az 1X2 szazalekok OSSZEGE legyen pontosan 100%.
 9) Minden szekcio vegen legyen egy rovid "Forras:" sor.
+10) Ha van prediction.percent adat, az 1X2 szazalekok azt kovessek.
 
 VALASZ FORMATUM (MARKDOWN, pontosan ezekkel a cimekkel)
 ## 1) Gyors osszkep
@@ -158,7 +218,8 @@ A stilus legyen professzionalis, kozertheto, targyilagos.
       const response = await result.response;
       const text = response.text();
       if (text?.trim()) {
-        const normalized = normalize1X2Probabilities(text);
+        const aligned = applyContextProbabilities(text, context);
+        const normalized = normalize1X2Probabilities(aligned);
         return ensureSourceReminder(normalized);
       }
     } catch (error) {
