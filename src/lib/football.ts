@@ -123,16 +123,63 @@ function getTeamRecentStrength(teamId: number, fixtures: any[]) {
   return score;
 }
 
-function deriveFallbackProbabilities(homeTeamId: number, awayTeamId: number, homeRecent: any[], awayRecent: any[]) {
+function getRecentGoalProfile(teamId: number, fixtures: any[]) {
+  let played = 0;
+  let goalsFor = 0;
+  let goalsAgainst = 0;
+  for (const fixture of fixtures.slice(0, 5)) {
+    const homeId = fixture?.teams?.home?.id;
+    const awayId = fixture?.teams?.away?.id;
+    const goalsHome = fixture?.goals?.home;
+    const goalsAway = fixture?.goals?.away;
+    if (!Number.isFinite(goalsHome) || !Number.isFinite(goalsAway)) continue;
+    const isHome = homeId === teamId;
+    goalsFor += isHome ? goalsHome : goalsAway;
+    goalsAgainst += isHome ? goalsAway : goalsHome;
+    played += 1;
+  }
+  if (played === 0) return { gf: 1.1, ga: 1.1 };
+  return { gf: goalsFor / played, ga: goalsAgainst / played };
+}
+
+function deriveFallbackProbabilities(
+  homeTeamId: number,
+  awayTeamId: number,
+  homeRecent: any[],
+  awayRecent: any[],
+  xgSummary?: MatchAnalysisContext['xgSummary']
+) {
   const homeStrength = getTeamRecentStrength(homeTeamId, homeRecent);
   const awayStrength = getTeamRecentStrength(awayTeamId, awayRecent);
-  const delta = homeStrength - awayStrength;
+  const deltaForm = homeStrength - awayStrength;
 
-  // Baseline: home edge + draw weight, then adjust with recent form delta.
-  const home = 44 + delta * 2.2;
-  const away = 30 - delta * 1.8;
-  const draw = 26 - delta * 0.4;
-  return normalizeTo100(Math.max(10, home), Math.max(12, draw), Math.max(8, away));
+  const homeGoals = getRecentGoalProfile(homeTeamId, homeRecent);
+  const awayGoals = getRecentGoalProfile(awayTeamId, awayRecent);
+
+  const homeXg = xgSummary?.home?.avgXG;
+  const homeXga = xgSummary?.home?.avgXGA;
+  const awayXg = xgSummary?.away?.avgXG;
+  const awayXga = xgSummary?.away?.avgXGA;
+
+  const attackDelta = (homeGoals.gf - awayGoals.ga) - (awayGoals.gf - homeGoals.ga);
+  const xgDelta =
+    Number.isFinite(homeXg as number) && Number.isFinite(homeXga as number) && Number.isFinite(awayXg as number) && Number.isFinite(awayXga as number)
+      ? ((homeXg as number) - (homeXga as number)) - ((awayXg as number) - (awayXga as number))
+      : 0;
+
+  // Home advantage + form + scoring profile + xG correction
+  const scoreDelta = 0.9 + deltaForm * 0.11 + attackDelta * 0.75 + xgDelta * 0.65;
+
+  let home = 41 + scoreDelta * 11;
+  let away = 31 - scoreDelta * 9;
+  let draw = 28 - Math.abs(scoreDelta) * 4.5;
+
+  // Clamp to realistic ranges
+  home = Math.max(12, Math.min(74, home));
+  away = Math.max(8, Math.min(66, away));
+  draw = Math.max(10, Math.min(40, draw));
+
+  return normalizeTo100(home, draw, away);
 }
 
 export async function getMatches() {
@@ -227,7 +274,7 @@ export async function getMatchAnalysisContext(matchDetails: any): Promise<MatchA
   const predictionFirst = prediction[0] || null;
   const probabilities =
     getPredictionProbabilities(predictionFirst) ||
-    deriveFallbackProbabilities(homeTeamId, awayTeamId, homeRecent, awayRecent);
+    deriveFallbackProbabilities(homeTeamId, awayTeamId, homeRecent, awayRecent, { home: homeXg, away: awayXg });
 
   return {
     prediction: predictionFirst,

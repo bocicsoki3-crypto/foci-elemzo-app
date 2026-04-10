@@ -237,22 +237,22 @@ export default function Home() {
     ] as [string, any[]]);
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] text-slate-900 font-sans">
+    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950 text-slate-100 font-sans">
       {/* Header */}
-      <header className="sticky top-0 z-30 w-full border-b border-slate-200 bg-white/80 backdrop-blur-md">
+      <header className="sticky top-0 z-30 w-full border-b border-slate-700 bg-slate-900/85 backdrop-blur-md">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6">
           <div className="flex items-center gap-2">
             <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-blue-200">
               <Trophy className="w-6 h-6" />
             </div>
-            <h1 className="text-xl font-black tracking-tight text-slate-900 sm:text-2xl uppercase">Foci<span className="text-blue-600">Elemző</span> AI</h1>
+            <h1 className="text-xl font-black tracking-tight text-slate-100 sm:text-2xl uppercase">Foci<span className="text-blue-400">Elemző</span> AI</h1>
           </div>
           <div className="flex items-center gap-4">
-            <div className="hidden md:flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-2 py-1">
+            <div className="hidden md:flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-800/70 px-2 py-1">
               <select
                 value={riskProfile}
                 onChange={(e) => setRiskProfile(e.target.value as RiskProfile)}
-                className="bg-transparent text-xs font-semibold text-slate-600 outline-none"
+                className="bg-transparent text-xs font-semibold text-slate-200 outline-none"
                 title="Kockázati profil"
               >
                 <option value="konzervativ">Konzervatív</option>
@@ -265,20 +265,20 @@ export default function Home() {
                 step={10}
                 value={bankroll}
                 onChange={(e) => setBankroll(Math.max(10, Number(e.target.value) || 100))}
-                className="w-20 rounded-md border border-slate-200 px-2 py-1 text-xs font-semibold text-slate-600"
+                className="w-20 rounded-md border border-slate-700 bg-slate-900 px-2 py-1 text-xs font-semibold text-slate-200"
                 title="Bankroll"
               />
             </div>
             <button
               onClick={fetchMatches}
               disabled={loading}
-              className="flex items-center gap-2 px-3 py-1.5 text-sm font-semibold text-slate-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
+              className="flex items-center gap-2 px-3 py-1.5 text-sm font-semibold text-slate-200 hover:text-blue-300 hover:bg-slate-800 rounded-lg transition-all"
             >
               <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
               Frissítés
             </button>
-            <div className="h-8 w-[1px] bg-slate-200 hidden sm:block"></div>
-            <div className="hidden sm:flex items-center gap-2 text-xs font-medium text-slate-400">
+            <div className="h-8 w-[1px] bg-slate-700 hidden sm:block"></div>
+            <div className="hidden sm:flex items-center gap-2 text-xs font-medium text-slate-300">
               <ShieldCheck className="w-4 h-4 text-emerald-500" />
               Saját használatra
             </div>
@@ -293,16 +293,16 @@ export default function Home() {
           <div className="lg:col-span-5 flex flex-col gap-6">
             <div className="flex flex-col gap-4">
               <div className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-2 bg-white px-3 py-2 rounded-xl border border-slate-200 shadow-sm flex-1">
+                <div className="flex items-center gap-2 bg-slate-800/70 px-3 py-2 rounded-xl border border-slate-700 shadow-sm flex-1">
                   <Search className="w-4 h-4 text-slate-400" />
                   <input
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     placeholder="Keresés csapatnévre (pl. Barcelona)"
-                    className="w-full bg-transparent text-sm font-medium text-slate-700 placeholder:text-slate-400 outline-none"
+                    className="w-full bg-transparent text-sm font-medium text-slate-100 placeholder:text-slate-400 outline-none"
                   />
                 </div>
-                <div className="hidden sm:flex items-center gap-2 px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-medium text-slate-500">
+                <div className="hidden sm:flex items-center gap-2 px-3 py-2 bg-slate-800/70 border border-slate-700 rounded-xl text-xs font-medium text-slate-300">
                   <ListFilter className="w-4 h-4" />
                   Összesen: {filteredMatches.length}
                 </div>
@@ -329,17 +329,17 @@ export default function Home() {
                       const emblem = leagueMatches[0]?.competition?.emblem;
 
                       return (
-                        <div key={leagueName} className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden mb-3">
+                        <div key={leagueName} className="bg-slate-900/70 rounded-xl border border-slate-700 shadow-sm overflow-hidden mb-3">
                           <button
                             onClick={() => toggleLeague(leagueName)}
-                            className="w-full flex items-center justify-between p-4 bg-slate-50 hover:bg-slate-100 transition-colors"
+                            className="w-full flex items-center justify-between p-4 bg-slate-800/60 hover:bg-slate-800 transition-colors"
                           >
                             <div className="flex items-center gap-3">
                               {emblem && (
                                 <img src={emblem} alt={leagueName} className="w-6 h-6 object-contain" />
                               )}
-                              <span className="font-bold text-slate-800">{leagueName}</span>
-                              <span className="bg-white px-2 py-0.5 rounded-full text-xs font-semibold text-slate-500 border border-slate-200">
+                              <span className="font-bold text-slate-100">{leagueName}</span>
+                              <span className="bg-slate-900 px-2 py-0.5 rounded-full text-xs font-semibold text-slate-300 border border-slate-700">
                                 {leagueMatches.length}
                               </span>
                             </div>
@@ -359,7 +359,7 @@ export default function Home() {
                                 transition={{ duration: 0.2 }}
                                 className="overflow-hidden"
                               >
-                                <div className="p-4 flex flex-col gap-3 border-t border-slate-100 bg-white">
+                                <div className="p-4 flex flex-col gap-3 border-t border-slate-700 bg-slate-900/60">
                                   {leagueMatches.map((match) => (
                                     <MatchCard
                                       key={match.id}
@@ -505,7 +505,7 @@ export default function Home() {
       </AnimatePresence>
 
       {/* Footer */}
-      <footer className="mt-auto border-t border-slate-200 bg-white py-8">
+      <footer className="mt-auto border-t border-slate-700 bg-slate-900/70 py-8">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 text-center text-slate-400 text-sm">
           <p>© 2026 FociElemző AI - Privát verzió</p>
           <p className="mt-1">Készült Gemini-vel és Trae IDE-vel</p>

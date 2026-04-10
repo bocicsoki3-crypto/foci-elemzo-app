@@ -61,32 +61,32 @@ export default function AnalysisResult({
 
   if (!selectedMatch) {
     return (
-      <div className="flex flex-col items-center justify-center p-12 bg-white rounded-2xl border-2 border-dashed border-gray-100 text-center">
+      <div className="flex flex-col items-center justify-center p-12 bg-slate-900/70 rounded-2xl border-2 border-dashed border-slate-700 text-center">
         <div className="w-16 h-16 bg-blue-50 text-blue-500 rounded-full flex items-center justify-center mb-4">
           <Bot className="w-8 h-8" />
         </div>
-        <h3 className="text-xl font-bold text-gray-800 mb-2">Válassz egy mérkőzést</h3>
-        <p className="text-gray-500 max-w-md">Válaszd ki a listából azt a mérkőzést, amit a Gemini AI-val szeretnél kielemeztetni.</p>
+        <h3 className="text-xl font-bold text-slate-100 mb-2">Válassz egy mérkőzést</h3>
+        <p className="text-slate-400 max-w-md">Válaszd ki a listából azt a mérkőzést, amit a Gemini AI-val szeretnél kielemeztetni.</p>
       </div>
     );
   }
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden flex flex-col min-h-[500px]">
-      <div className="p-6 border-b border-gray-50 bg-gradient-to-r from-blue-50 to-indigo-50 flex items-center justify-between">
+    <div className="bg-slate-900/70 rounded-2xl border border-slate-700 shadow-sm overflow-hidden flex flex-col min-h-[500px]">
+      <div className="p-6 border-b border-slate-700 bg-gradient-to-r from-slate-800 to-indigo-900/40 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 bg-blue-600 text-white rounded-xl flex items-center justify-center shadow-lg shadow-blue-200">
             <Sparkles className="w-6 h-6" />
           </div>
           <div>
-            <h2 className="text-lg font-bold text-gray-900 leading-tight">Gemini AI Elemzés</h2>
-            <p className="text-xs text-blue-600 font-medium">{selectedMatch.homeTeam.name} vs {selectedMatch.awayTeam.name}</p>
+            <h2 className="text-lg font-bold text-slate-100 leading-tight">Gemini AI Elemzés</h2>
+            <p className="text-xs text-blue-300 font-medium">{selectedMatch.homeTeam.name} vs {selectedMatch.awayTeam.name}</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
           <button
             onClick={onOpenArchive}
-            className="p-2 text-gray-500 hover:text-blue-600 hover:bg-white rounded-lg transition-all"
+            className="p-2 text-slate-300 hover:text-blue-300 hover:bg-slate-800 rounded-lg transition-all"
             title="Mentett elemzések"
           >
             <History className="w-5 h-5" />
@@ -94,7 +94,7 @@ export default function AnalysisResult({
           <button
             onClick={exportAnalysis}
             disabled={!analysis}
-            className="p-2 text-gray-500 hover:text-blue-600 hover:bg-white rounded-lg transition-all disabled:opacity-40"
+            className="p-2 text-slate-300 hover:text-blue-300 hover:bg-slate-800 rounded-lg transition-all disabled:opacity-40"
             title="Elemzés export"
           >
             <Download className="w-5 h-5" />
@@ -110,7 +110,7 @@ export default function AnalysisResult({
           <button
             onClick={onRefresh}
             disabled={loading}
-            className="p-2 text-gray-500 hover:text-blue-600 hover:bg-white rounded-lg transition-all disabled:opacity-50"
+            className="p-2 text-slate-300 hover:text-blue-300 hover:bg-slate-800 rounded-lg transition-all disabled:opacity-50"
             title="Elemzés frissítése"
           >
             <RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
@@ -128,8 +128,8 @@ export default function AnalysisResult({
               className="flex flex-col items-center justify-center py-20 text-center"
             >
               <Loader2 className="w-12 h-12 text-blue-500 animate-spin mb-4" />
-              <p className="text-gray-600 font-medium">Gemini éppen elemzi a mérkőzést...</p>
-              <p className="text-xs text-gray-400 mt-2">Ez eltarthat pár másodpercig</p>
+              <p className="text-slate-200 font-medium">Gemini éppen elemzi a mérkőzést...</p>
+              <p className="text-xs text-slate-400 mt-2">Ez eltarthat pár másodpercig</p>
             </motion.div>
           ) : analysis ? (
             <motion.div
@@ -160,13 +160,13 @@ export default function AnalysisResult({
               {parseSections(analysis).map((section, sectionIndex) => (
                 <div
                   key={`${section.title}-${sectionIndex}`}
-                  className="rounded-xl border border-slate-200 bg-slate-50/60 p-4 shadow-sm"
+                  className="rounded-xl border border-slate-700 bg-slate-800/60 p-4 shadow-sm"
                 >
                   <div className="mb-3 inline-flex rounded-full bg-blue-100 px-3 py-1 text-xs font-semibold text-blue-700">
                     {section.title}
                   </div>
 
-                  <div className="space-y-2 text-sm text-slate-700 leading-relaxed">
+                  <div className="space-y-2 text-sm text-slate-200 leading-relaxed">
                     {section.lines.map((rawLine, lineIndex) => {
                       const line = rawLine.trim();
                       if (!line) return null;
@@ -198,12 +198,12 @@ export default function AnalysisResult({
               ))}
             </motion.div>
           ) : (
-            <div className="text-center py-20 text-gray-400 italic">Nincs elérhető elemzés. Kattints a frissítésre!</div>
+            <div className="text-center py-20 text-slate-400 italic">Nincs elérhető elemzés. Kattints a frissítésre!</div>
           )}
         </AnimatePresence>
       </div>
 
-      <div className="p-4 bg-gray-50 text-[10px] text-gray-400 text-center">
+      <div className="p-4 bg-slate-900 text-[10px] text-slate-500 text-center">
         Az elemzés mesterséges intelligencia segítségével készült. Kérjük, felelősségteljesen fogadj!
       </div>
     </div>
