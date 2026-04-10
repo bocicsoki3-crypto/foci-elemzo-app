@@ -107,6 +107,13 @@ export default function AnalysisResult({
         </div>
         <h3 className="text-xl font-bold text-white mb-2">Válassz egy mérkőzést</h3>
         <p className="text-slate-300 max-w-md">Válaszd ki a listából azt a mérkőzést, amit a Gemini AI-val szeretnél kielemeztetni.</p>
+        <button
+          onClick={onOpenArchive}
+          className="mt-5 inline-flex items-center gap-2 rounded-xl border border-slate-600 bg-slate-800/80 px-4 py-2 text-sm font-semibold text-slate-100 hover:border-cyan-400/70 hover:text-cyan-300 hover:bg-slate-800 transition-all"
+        >
+          <History className="w-4 h-4" />
+          Elemzés előzmények megnyitása
+        </button>
       </div>
     );
   }
