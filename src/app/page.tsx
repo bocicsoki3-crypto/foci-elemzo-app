@@ -2,8 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { format, isToday, isTomorrow } from 'date-fns';
-import { Calendar, RefreshCw, Trophy, Bot, Info, ShieldCheck, ChevronDown, ChevronUp, ListFilter } from 'lucide-react';
+import { RefreshCw, Trophy, Info, ShieldCheck, ChevronDown, ChevronUp, ListFilter, Search } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import MatchCard from '@/components/MatchCard';
 import AnalysisResult from '@/components/AnalysisResult';
@@ -15,7 +14,7 @@ export default function Home() {
   const [selectedMatch, setSelectedMatch] = useState<any | null>(null);
   const [analysis, setAnalysis] = useState<string | null>(null);
   const [analysisLoading, setAnalysisLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<'today' | 'tomorrow'>('today');
+  const [searchQuery, setSearchQuery] = useState('');
   const [expandedLeagues, setExpandedLeagues] = useState<Set<string>>(new Set());
 
   const toggleLeague = (leagueName: string) => {
@@ -84,11 +83,12 @@ export default function Home() {
     fetchMatches();
   }, []);
 
-  const filteredMatches = matches.filter(match => {
-    const matchDate = new Date(match.utcDate);
-    if (activeTab === 'today') return isToday(matchDate);
-    if (activeTab === 'tomorrow') return isTomorrow(matchDate);
-    return false;
+  const normalizedQuery = searchQuery.trim().toLocaleLowerCase('hu');
+  const filteredMatches = matches.filter((match) => {
+    if (!normalizedQuery) return true;
+    const homeName = (match?.homeTeam?.shortName || match?.homeTeam?.name || '').toLocaleLowerCase('hu');
+    const awayName = (match?.awayTeam?.shortName || match?.awayTeam?.name || '').toLocaleLowerCase('hu');
+    return homeName.includes(normalizedQuery) || awayName.includes(normalizedQuery);
   });
 
   const groupedMatches = filteredMatches.reduce((groups, match) => {
@@ -150,24 +150,15 @@ export default function Home() {
           {/* Left Column: Match List */}
           <div className="lg:col-span-5 flex flex-col gap-6">
             <div className="flex flex-col gap-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3 bg-white p-1 rounded-xl border border-slate-200 shadow-sm w-fit">
-                  <button
-                    onClick={() => setActiveTab('today')}
-                    className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${
-                      activeTab === 'today' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'
-                    }`}
-                  >
-                    Mai Meccsek
-                  </button>
-                  <button
-                    onClick={() => setActiveTab('tomorrow')}
-                    className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${
-                      activeTab === 'tomorrow' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'
-                    }`}
-                  >
-                    Holnapi Meccsek
-                  </button>
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2 bg-white px-3 py-2 rounded-xl border border-slate-200 shadow-sm flex-1">
+                  <Search className="w-4 h-4 text-slate-400" />
+                  <input
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Keresés csapatnévre (pl. Barcelona)"
+                    className="w-full bg-transparent text-sm font-medium text-slate-700 placeholder:text-slate-400 outline-none"
+                  />
                 </div>
                 <div className="hidden sm:flex items-center gap-2 px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-medium text-slate-500">
                   <ListFilter className="w-4 h-4" />
@@ -188,7 +179,7 @@ export default function Home() {
                     </div>
                   ) : sortedLeagueEntries.length === 0 ? (
                     <div className="p-12 text-center bg-white border border-slate-100 rounded-2xl text-slate-400 font-medium">
-                      Nincs elérhető mérkőzés ezen a napon.
+                      Nincs találat erre a csapatnévre.
                     </div>
                   ) : (
                     sortedLeagueEntries.map(([leagueName, leagueMatches]) => {
