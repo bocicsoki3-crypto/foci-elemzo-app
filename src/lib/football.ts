@@ -347,26 +347,27 @@ function buildTotalsMarketSignal(line: number, expectedTotal: number, overLabel:
 }
 
 function getExpectedGoalsInputs(
-  homeIntel: MatchAnalysisContext['teamIntel']['home'],
-  awayIntel: MatchAnalysisContext['teamIntel']['away'],
+  homeIntel: any,
+  awayIntel: any,
   xg: MatchAnalysisContext['xgSummary']
 ) {
-  const homeAttack = homeIntel.goalsForPerMatch ?? 1.2;
-  const homeDefense = homeIntel.goalsAgainstPerMatch ?? 1.2;
-  const awayAttack = awayIntel.goalsForPerMatch ?? 1.1;
-  const awayDefense = awayIntel.goalsAgainstPerMatch ?? 1.2;
+  // Alapértelmezett értékek, ha nincs Home/Away specifikus adat
+  const homeAttack = homeIntel.homeGoalsForPerMatch ?? homeIntel.goalsForPerMatch ?? 1.2;
+  const homeDefense = homeIntel.homeGoalsAgainstPerMatch ?? homeIntel.goalsAgainstPerMatch ?? 1.2;
+  const awayAttack = awayIntel.awayGoalsForPerMatch ?? awayIntel.goalsForPerMatch ?? 1.1;
+  const awayDefense = awayIntel.awayGoalsAgainstPerMatch ?? awayIntel.goalsAgainstPerMatch ?? 1.2;
 
   const homeXg = xg.home.avgXG ?? homeAttack;
   const awayXg = xg.away.avgXG ?? awayAttack;
   const homeXga = xg.home.avgXGA ?? homeDefense;
   const awayXga = xg.away.avgXGA ?? awayDefense;
 
-  // Weighted blend: form-based GF/GA + xG/xGA + home advantage.
+  // Home advantage (0.18) + Home/Away specifikus súlyozás
   const expHome = clampExpectedGoals(
-    homeAttack * 0.28 + awayDefense * 0.17 + homeXg * 0.35 + awayXga * 0.2 + 0.18
+    homeAttack * 0.35 + awayDefense * 0.20 + homeXg * 0.30 + awayXga * 0.15 + 0.18
   );
   const expAway = clampExpectedGoals(
-    awayAttack * 0.3 + homeDefense * 0.18 + awayXg * 0.34 + homeXga * 0.18 - 0.08
+    awayAttack * 0.35 + homeDefense * 0.20 + awayXg * 0.30 + homeXga * 0.15 - 0.08
   );
 
   return { expHome, expAway };
@@ -567,41 +568,61 @@ function getPredictionProbabilities(prediction: any) {
 
 function getTeamRecentStrength(teamId: number, fixtures: any[]) {
   let score = 0;
-  for (const fixture of fixtures.slice(0, 5)) {
+  let totalWeight = 0;
+  // Súlyozás: a legutóbbi meccs (index 0) kapja a legnagyobb súlyt (pl. 1.5), 
+  // a régebbiek (index 4) a legkisebbet (pl. 0.6).
+  const weights = [1.5, 1.2, 1.0, 0.8, 0.6];
+
+  for (let i = 0; i < fixtures.slice(0, 5).length; i++) {
+    const fixture = fixtures[i];
+    const weight = weights[i] || 0.5;
     const homeId = fixture?.teams?.home?.id;
-    const awayId = fixture?.teams?.away?.id;
     const goalsHome = fixture?.goals?.home;
     const goalsAway = fixture?.goals?.away;
+    
     if (!Number.isFinite(goalsHome) || !Number.isFinite(goalsAway)) continue;
 
     const isHome = homeId === teamId;
     const goalsFor = isHome ? goalsHome : goalsAway;
     const goalsAgainst = isHome ? goalsAway : goalsHome;
 
-    if (goalsFor > goalsAgainst) score += 3;
-    else if (goalsFor === goalsAgainst) score += 1;
-    score += Math.max(-1, Math.min(1, (goalsFor - goalsAgainst) * 0.2));
+    let matchScore = 0;
+    if (goalsFor > goalsAgainst) matchScore = 3;
+    else if (goalsFor === goalsAgainst) matchScore = 1;
+    
+    // Gólkülönbség bónusz/levonás
+    matchScore += Math.max(-1, Math.min(1, (goalsFor - goalsAgainst) * 0.2));
+    
+    score += matchScore * weight;
+    totalWeight += weight;
   }
-  return score;
+  
+  return totalWeight > 0 ? (score / totalWeight) * 3 : 0; // Normalizálva 0-9+ skálára
 }
 
 function getRecentGoalProfile(teamId: number, fixtures: any[]) {
-  let played = 0;
-  let goalsFor = 0;
-  let goalsAgainst = 0;
-  for (const fixture of fixtures.slice(0, 5)) {
+  let weightedGf = 0;
+  let weightedGa = 0;
+  let totalWeight = 0;
+  const weights = [1.5, 1.2, 1.0, 0.8, 0.6];
+
+  for (let i = 0; i < fixtures.slice(0, 5).length; i++) {
+    const fixture = fixtures[i];
+    const weight = weights[i] || 0.5;
     const homeId = fixture?.teams?.home?.id;
-    const awayId = fixture?.teams?.away?.id;
     const goalsHome = fixture?.goals?.home;
     const goalsAway = fixture?.goals?.away;
+    
     if (!Number.isFinite(goalsHome) || !Number.isFinite(goalsAway)) continue;
+    
     const isHome = homeId === teamId;
-    goalsFor += isHome ? goalsHome : goalsAway;
-    goalsAgainst += isHome ? goalsAway : goalsHome;
-    played += 1;
+    weightedGf += (isHome ? goalsHome : goalsAway) * weight;
+    weightedGa += (isHome ? goalsAway : goalsHome) * weight;
+    totalWeight += weight;
   }
-  if (played === 0) return { gf: 1.1, ga: 1.1 };
-  return { gf: goalsFor / played, ga: goalsAgainst / played };
+  
+  if (totalWeight === 0) return { gf: 1.1, ga: 1.1 };
+  return { gf: weightedGf / totalWeight, ga: weightedGa / totalWeight };
 }
 
 function deriveFallbackProbabilities(
@@ -609,7 +630,9 @@ function deriveFallbackProbabilities(
   awayTeamId: number,
   homeRecent: any[],
   awayRecent: any[],
-  xgSummary?: MatchAnalysisContext['xgSummary']
+  xgSummary?: MatchAnalysisContext['xgSummary'],
+  homeIntel?: any,
+  awayIntel?: any
 ) {
   const homeStrength = getTeamRecentStrength(homeTeamId, homeRecent);
   const awayStrength = getTeamRecentStrength(awayTeamId, awayRecent);
@@ -629,17 +652,22 @@ function deriveFallbackProbabilities(
       ? ((homeXg as number) - (homeXga as number)) - ((awayXg as number) - (awayXga as number))
       : 0;
 
-  // Home advantage + form + scoring profile + xG correction
-  const scoreDelta = 0.9 + deltaForm * 0.11 + attackDelta * 0.75 + xgDelta * 0.65;
+  // Home/Away PPG különbség beépítése
+  const homePpg = homeIntel?.homePpg ?? homeIntel?.ppg ?? 1.5;
+  const awayPpg = awayIntel?.awayPpg ?? awayIntel?.ppg ?? 1.2;
+  const ppgDelta = homePpg - awayPpg;
 
-  let home = 41 + scoreDelta * 11;
-  let away = 31 - scoreDelta * 9;
-  let draw = 28 - Math.abs(scoreDelta) * 4.5;
+  // Home advantage + form + scoring profile + xG correction + PPG delta
+  const scoreDelta = 0.8 + deltaForm * 0.12 + attackDelta * 0.65 + xgDelta * 0.55 + ppgDelta * 0.25;
+
+  let home = 40 + scoreDelta * 11;
+  let away = 30 - scoreDelta * 9;
+  let draw = 30 - Math.abs(scoreDelta) * 4.5;
 
   // Clamp to realistic ranges
-  home = Math.max(12, Math.min(74, home));
-  away = Math.max(8, Math.min(66, away));
-  draw = Math.max(10, Math.min(40, draw));
+  home = Math.max(10, Math.min(78, home));
+  away = Math.max(8, Math.min(70, away));
+  draw = Math.max(10, Math.min(45, draw));
 
   return normalizeTo100(home, draw, away);
 }
@@ -653,9 +681,31 @@ function buildTeamIntel(teamStats: any, injuries: any[], lineups: any[], teamId:
   const cleanSheets = toSafeNumber(teamStats?.clean_sheet?.total);
   const failedToScore = toSafeNumber(teamStats?.failed_to_score?.total);
 
+  // Home/Away specifikus adatok kinyerése
+  const homePlayed = toSafeNumber(teamStats?.fixtures?.played?.home) || 0;
+  const homeWins = toSafeNumber(teamStats?.fixtures?.wins?.home) || 0;
+  const homeDraws = toSafeNumber(teamStats?.fixtures?.draws?.home) || 0;
+  const homeGoalsFor = toSafeNumber(teamStats?.goals?.for?.total?.home) || 0;
+  const homeGoalsAgainst = toSafeNumber(teamStats?.goals?.against?.total?.home) || 0;
+
+  const awayPlayed = toSafeNumber(teamStats?.fixtures?.played?.away) || 0;
+  const awayWins = toSafeNumber(teamStats?.fixtures?.wins?.away) || 0;
+  const awayDraws = toSafeNumber(teamStats?.fixtures?.draws?.away) || 0;
+  const awayGoalsFor = toSafeNumber(teamStats?.goals?.for?.total?.away) || 0;
+  const awayGoalsAgainst = toSafeNumber(teamStats?.goals?.against?.total?.away) || 0;
+
   const ppg = played > 0 ? Number(((wins * 3 + draws) / played).toFixed(2)) : null;
+  const homePpg = homePlayed > 0 ? Number(((homeWins * 3 + homeDraws) / homePlayed).toFixed(2)) : null;
+  const awayPpg = awayPlayed > 0 ? Number(((awayWins * 3 + awayDraws) / awayPlayed).toFixed(2)) : null;
+
   const goalsForPerMatch = played > 0 && goalsFor !== null ? Number((goalsFor / played).toFixed(2)) : null;
   const goalsAgainstPerMatch = played > 0 && goalsAgainst !== null ? Number((goalsAgainst / played).toFixed(2)) : null;
+  
+  const homeGoalsForPerMatch = homePlayed > 0 ? Number((homeGoalsFor / homePlayed).toFixed(2)) : null;
+  const homeGoalsAgainstPerMatch = homePlayed > 0 ? Number((homeGoalsAgainst / homePlayed).toFixed(2)) : null;
+  const awayGoalsForPerMatch = awayPlayed > 0 ? Number((awayGoalsFor / awayPlayed).toFixed(2)) : null;
+  const awayGoalsAgainstPerMatch = awayPlayed > 0 ? Number((awayGoalsAgainst / awayPlayed).toFixed(2)) : null;
+
   const cleanSheetRate = played > 0 && cleanSheets !== null ? Number(((cleanSheets / played) * 100).toFixed(1)) : null;
   const failedToScoreRate = played > 0 && failedToScore !== null ? Number(((failedToScore / played) * 100).toFixed(1)) : null;
 
@@ -674,8 +724,14 @@ function buildTeamIntel(teamStats: any, injuries: any[], lineups: any[], teamId:
 
   return {
     ppg,
+    homePpg,
+    awayPpg,
     goalsForPerMatch,
     goalsAgainstPerMatch,
+    homeGoalsForPerMatch,
+    homeGoalsAgainstPerMatch,
+    awayGoalsForPerMatch,
+    awayGoalsAgainstPerMatch,
     avgCorners: null,
     avgYellowCards: null,
     avgRedCards: null,
@@ -833,13 +889,24 @@ export async function getMatchAnalysisContext(matchDetails: any): Promise<MatchA
     getTeamRecentDisciplineAndCorners(awayTeamId, awayRecent),
   ]);
 
+  const homeIntel = buildTeamIntel(homeTeamStats, homeInjuries, lineups, homeTeamId);
+  const awayIntel = buildTeamIntel(awayTeamStats, awayInjuries, lineups, awayTeamId);
+  homeIntel.avgCorners = homeDiscipline.avgCorners;
+  homeIntel.avgYellowCards = homeDiscipline.avgYellowCards;
+  homeIntel.avgRedCards = homeDiscipline.avgRedCards;
+  awayIntel.avgCorners = awayDiscipline.avgCorners;
+  awayIntel.avgYellowCards = awayDiscipline.avgYellowCards;
+  awayIntel.avgRedCards = awayDiscipline.avgRedCards;
+
   const predictionFirst = prediction[0] || null;
   const fallbackProbabilities = deriveFallbackProbabilities(
     homeTeamId,
     awayTeamId,
     homeRecent,
     awayRecent,
-    { home: finalHomeXg, away: finalAwayXg }
+    { home: finalHomeXg, away: finalAwayXg },
+    homeIntel,
+    awayIntel
   );
   const predictionProbabilities = getPredictionProbabilities(predictionFirst);
   const probabilities = predictionProbabilities
@@ -852,14 +919,6 @@ export async function getMatchAnalysisContext(matchDetails: any): Promise<MatchA
   const hasInjuries = (homeInjuries?.length || 0) + (awayInjuries?.length || 0) > 0;
   const hasXg = (finalHomeXg.samples || 0) > 0 || (finalAwayXg.samples || 0) > 0;
 
-  const homeIntel = buildTeamIntel(homeTeamStats, homeInjuries, lineups, homeTeamId);
-  const awayIntel = buildTeamIntel(awayTeamStats, awayInjuries, lineups, awayTeamId);
-  homeIntel.avgCorners = homeDiscipline.avgCorners;
-  homeIntel.avgYellowCards = homeDiscipline.avgYellowCards;
-  homeIntel.avgRedCards = homeDiscipline.avgRedCards;
-  awayIntel.avgCorners = awayDiscipline.avgCorners;
-  awayIntel.avgYellowCards = awayDiscipline.avgYellowCards;
-  awayIntel.avgRedCards = awayDiscipline.avgRedCards;
   const monteCarlo = runMonteCarlo(homeIntel, awayIntel, { home: finalHomeXg, away: finalAwayXg });
   const { expHome, expAway } = getExpectedGoalsInputs(homeIntel, awayIntel, { home: finalHomeXg, away: finalAwayXg });
   const firstHalfSignal = firstHalf1x2FromExpectedGoals(expHome, expAway);
