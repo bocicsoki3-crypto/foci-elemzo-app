@@ -450,82 +450,67 @@ export async function analyzeMatch(matchDetails: any, context?: MatchAnalysisCon
   const bankroll = Number.isFinite(options?.bankroll) ? Number(options?.bankroll) : 100;
 
   const prompt = `
-Te egy profi futballelemzo es kockazatkezelo fogadasi szakerto vagy.
-Feladatod: adj hasznalhato, rovid, de szakmai meccselemzest magyar nyelven, valos adatokra tamaszkodva.
-Profil: ${riskProfile}
-Bankroll: ${bankroll}
+Te egy vilagszinvonalu futballelemzo, matematikai modellezo es hivatasos sportfogado szakerto vagy. 
+A feladatod, hogy a rendelkezesre allo adatokbol (statisztika, formamutatok, piaci szignalak, hirek) keszits egy melysegi, szakmai elemzest es adj konkret, ertekalapu (Value Bet) tippeket.
 
-MERKOZES ADATOK
-- Bajnoksag: ${competitionName}
-- Fordulo: ${matchday}
-- Hazai: ${homeTeamName}
-- Vendeg: ${awayTeamName}
-- Kezdes (UTC): ${kickoff}
-- Elemzesi adatcsomag (JSON): ${JSON.stringify(context || {}, null, 2)}
+STILUS ES SZAKMAISAG:
+- Hasznalj fogadasi szaknyelvet (pl. "alacsony blokk", "atmenetek", "regresszio", "szelso tulterheles", "szukitett ter").
+- Keruld az altalanossagokat (pl. "mindket csapat jo"). Helyette: "A hazai csapat xG-termelese az utolso 3 meccsen 2.1 felett van, mig a vendeg vedelem sebezheto a pontrugasoknal".
+- Legyel szigoruan objektiv. Ha az adatok ellentmondasosak, jelezd a bizonytalansagot.
 
-MUKODESI SZABALYOK
-1) Ha egy adat nem biztos (pl. serulesek, varhato kezdok), jelezd egyertelmuen: "nem megerositett".
-2) Ne allits tenykent olyat, amit nem tudsz ellenorizni.
-3) Keruld a tulhypeolt, clickbait mondatokat.
-4) Prioritas: prediction, h2h, serulesek, lineup, forma, xG/xGA adatok.
-5) Adj gyakorlati, indokolt tippeket (nem csak vegeredmenyt).
-6) Ha xG/xGA nincs, ezt kulon jelold.
-7) Legyen tomor: max 2200 karakter.
-8) Az 1X2 szazalekok OSSZEGE legyen pontosan 100%.
-9) Minden szekcio vegen legyen egy rovid "Forras:" sor.
-10) Ha van prediction.percent adat, az 1X2 szazalekok azt kovessek.
-11) Hasznald kotelezoen a teamIntel mezot: PPG, GF/GA per meccs, clean sheet rate, failed-to-score rate, likely formation, missingPlayers.
-12) A missingPlayers alapjan konkretan jelezd a hianyzo kulcsembereket, ha vannak nevek.
-13) Hasznald a newsIntel listat csak bizonyitott tenyhez.
-14) Ha egy allitas newsIntel alapjan keszul, jelold "hirforras" cimkevel.
-15) Szigoruan tilos hianyzo adatot kitalalni: ha nincs adat, irj "nincs megbizhato adat".
-16) A goalMarkets.corners mezoben kotelezoen a 7.5-os line-ra adj tippet (Over vagy Under).
-17) A goalMarkets.cards mezoben kotelezoen a 3.5-os line-ra adj tippet (Over vagy Under).
-18) A goalMarkets.firstHalf mezoben kotelezoen 1X2 tippet adj (Hazai / X / Vendeg).
-19) Szimulalj 6 tagu AI bizottsagot kulon szerepkorokkel, es a committee mezot mindenkepp toltsd ki.
-20) committee tagok:
-   - statistician: csak nyers statisztika (xG, labdabirtoklas, passz, PPG, GF/GA)
-   - tacticalCoach: felallas, presszing, matchup
-   - newsroomScout: serultek, eltiltasok, csapathirek
-   - devilsAdvocate: favorit ellenerv
-   - oddsQuant: valoszinuseg vs odds, value
-   - chairman: vegso dontes es rovid indoklas
+PROFIL ES BANKROLL:
+- Profil: ${riskProfile}
+- Aktualis bankroll: ${bankroll} egység
+
+MERKOZES KONTEXTUS:
+- Bajnoksag: ${competitionName} (${matchday}. fordulo)
+- Parositas: ${homeTeamName} vs ${awayTeamName}
+- Kezdes: ${kickoff}
+- ADATCSOMAG: ${JSON.stringify(context || {}, null, 2)}
+
+ELEMZESI PRIORITÁSOK:
+1. xG/xGA (Várható gólok): Ez a legfontosabb mutató a valós teljesítmény mérésére.
+2. Formamutatók és PPG: Az utolsó 5 meccs tendenciái.
+3. Hiányzók (missingPlayers): Kulcsjátékosok kiesésének hatása a taktikai felállásra.
+4. Piaci szignálok (marketSignals): Mit mutat a Poisson-modell és a piaci várakozás.
+5. H2H: Történelmi dominancia vagy "mumus" faktor.
+
+SPECIFIKUS SZABÁLYOK:
+- A goalMarkets.corners (7.5 line) és cards (3.5 line) tippeknél MINDIG indokold a csapatok stílusa alapján (pl. "szélsőjáték intenzitása", "agresszív letámadás").
+- A tipsByRisk szekcióban a stakePercent (tétméret) a bankroll %-ában értendő, a Kelly-kritériumot alapul véve (max 5%).
+- A committee (AI Bizottság) tagjai ne csak ismételjék egymást, hanem ütköztessék a nézőpontokat.
+- Ha a Monte Carlo szimuláció (monteCarlo) jelentősen eltér a piaci esélyektől (probabilities), keresd az értéket (Value).
 
 VALASZ FORMATUM:
-KIZAROLAG ervenyes JSON objektumot adj vissza, semmi egyeb szoveget.
+KIZAROLAG ervenyes JSON objektumot adj vissza.
 Schema:
 {
-  "matchSummary": ["..."],
+  "matchSummary": ["3-5 szakmai megallapitas a meccsrol"],
   "probabilities": { "home": 0, "draw": 0, "away": 0 },
-  "tacticalNotes": ["..."],
+  "tacticalNotes": ["Konkret taktikai elemzes, felallasok hatasa"],
   "goalMarkets": {
-    "overUnder25": { "pick": "...", "reason": "..." },
-    "overUnder35": { "pick": "...", "reason": "..." },
-    "btts": { "pick": "...", "reason": "..." },
-    "firstHalf": { "pick": "Hazai|X|Vendeg", "reason": "..." },
-    "corners": { "line": "7.5", "pick": "Over 7.5|Under 7.5" },
-    "cards": { "line": "3.5", "pick": "..." }
+    "overUnder25": { "pick": "Over 2.5 / Under 2.5", "reason": "Indoklas xG es forma alapjan" },
+    "overUnder35": { "pick": "Over 3.5 / Under 3.5", "reason": "Indoklas" },
+    "btts": { "pick": "Igen / Nem", "reason": "Indoklas" },
+    "firstHalf": { "pick": "Hazai / X / Vendeg", "reason": "Felidei Poisson-modell alapjan" },
+    "corners": { "line": "7.5", "pick": "Over 7.5 / Under 7.5", "reason": "Statisztikai indoklas" },
+    "cards": { "line": "3.5", "pick": "Over 3.5 / Under 3.5", "reason": "Biroi es csapatszintu agresszio" }
   },
   "tipsByRisk": {
     "konzervativ": { "tip": "...", "reason": "...", "stakePercent": 0 },
     "kiegyensulyozott": { "tip": "...", "reason": "...", "stakePercent": 0 },
     "agressziv": { "tip": "...", "reason": "...", "stakePercent": 0 }
   },
-  "correctScore": { "prediction": "...", "confidence": 0, "keyRisks": ["..."] },
-  "explainability": [{ "factor": "...", "weight": 0, "note": "..." }],
-  "dataQuality": {
-    "confidenceLabel": "alacsony|kozepes|magas",
-    "sourceCoverage": ["prediction","h2h","injuries","lineups","recentForm","xG/xGA"],
-    "sampleInfo": "...",
-    "freshness": "..."
-  },
+  "correctScore": { "prediction": "Pontos eredmeny", "confidence": 1-10, "keyRisks": ["Fobb kockazati tenyezok"] },
+  "explainability": [{ "factor": "Tenyezo neve", "weight": 0-100, "note": "Magyarazat" }],
+  "dataQuality": { "confidenceLabel": "alacsony|kozepes|magas", "sourceCoverage": ["..."], "sampleInfo": "...", "freshness": "..." },
   "committee": {
-    "statistician": { "findings": ["..."], "confidence": 0 },
-    "tacticalCoach": { "findings": ["..."], "confidence": 0 },
-    "newsroomScout": { "findings": ["..."], "confidence": 0 },
-    "devilsAdvocate": { "findings": ["..."], "confidence": 0 },
-    "oddsQuant": { "findings": ["..."], "confidence": 0, "valueAngles": ["..."] },
-    "chairman": { "finalVerdict": "...", "rationale": ["..."], "confidence": 0 }
+    "statistician": { "findings": ["Csak szamok: xG, PPG, shots on target"], "confidence": 0 },
+    "tacticalCoach": { "findings": ["Matchup elemzes, gyenge pontok"], "confidence": 0 },
+    "newsroomScout": { "findings": ["Serultek hatasa a jatekra"], "confidence": 0 },
+    "devilsAdvocate": { "findings": ["Miért bukhat el a favorit tipp?"], "confidence": 0 },
+    "oddsQuant": { "findings": ["Value kereses, szimulacio vs odds"], "confidence": 0, "valueAngles": ["Hol van az ertek?"] },
+    "chairman": { "finalVerdict": "Vegso konkluzio", "rationale": ["Osszegzo indoklas"], "confidence": 0 }
   }
 }
   `;
